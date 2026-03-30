@@ -21,6 +21,5 @@ jobs:
           mkdir -p src/main/resources
           echo "${{ secrets.APPLICATION_YAML }}" > ./src/main/resources/application.yaml
 
-      # 도커 내부 빌드가 잘 되는지만 확인 (푸시는 하지 않음)
       - name: Verify Docker Build
         run: docker build -t runsync-test .
