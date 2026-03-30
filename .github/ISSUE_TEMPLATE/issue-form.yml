@@ -1,0 +1,32 @@
+name: '🚀 작업 이슈 생성'
+description: '새로운 기능 구현 또는 작업 내용을 기록합니다.'
+labels: [dev]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: '📋 이슈 내용(Description)'
+      description: '무엇을 왜 작업하는지 간단히 적어주세요.'
+      placeholder: |
+        - 현재 상황: 
+        - 목표:
+    validations:
+      required: true
+
+  - type: textarea
+    id: tasks
+    attributes:
+      label: '☑️ 체크리스트(Tasks)'
+      description: '완료해야 할 세부 작업 목록입니다.'
+      value: |
+        - [ ]
+    validations:
+      required: true
+
+  - type: textarea
+    id: references
+    attributes:
+      label: '📁 참조 및 자료(References)'
+      description: '링크, 이미지, 관련 이슈 번호 등을 남겨주세요.'
+    validations:
+      required: false
