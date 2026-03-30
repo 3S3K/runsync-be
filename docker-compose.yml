@@ -20,7 +20,7 @@ services:
     restart: always
 
   spring-app:
-    build: .
+    image: hhw3422/runsync-be:latest
     container_name: runsync-spring
     ports:
       - "8080:8080"
