@@ -30,6 +30,15 @@ jobs:
           docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/runsync-be:latest .
           docker push ${{ secrets.DOCKERHUB_USERNAME }}/runsync-be:latest
 
+      - name: Send docker-compose.yml to EC2
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ubuntu
+          key: ${{ secrets.EC2_SSH_KEY }}
+          source: "docker-compose.yml"
+          target: "~/"
+
       - name: Deploy to EC2
         uses: appleboy/ssh-action@master
         with:
@@ -38,6 +47,7 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
             cd ~ 
-            sudo docker-compose pull spring-app
-            sudo docker-compose up -d spring-app
+            sudo docker-compose down
+            sudo docker-compose pull
+            sudo docker-compose up -d          
             sudo docker image prune -f
