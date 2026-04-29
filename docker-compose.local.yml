@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: postgis/postgis:16-3.4-alpine
+    container_name: runsync-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: runsync
+      POSTGRES_USER: runsync
+      POSTGRES_PASSWORD: 1234
+
+  redis:
+    image: redis:alpine
+    container_name: runsync-redis
+    ports:
+      - "6379:6379"
