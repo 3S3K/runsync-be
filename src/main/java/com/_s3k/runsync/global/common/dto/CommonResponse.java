@@ -20,6 +20,7 @@ public class CommonResponse<T> {
     public CommonResponse(ResultCode resultCode) {
         this.statusCode = resultCode.getCode();
         this.message = resultCode.getMessage();
+        this.data = null;
     }
 
     // Validation 오류 메시지용 생성자

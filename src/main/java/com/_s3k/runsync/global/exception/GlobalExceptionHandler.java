@@ -25,6 +25,14 @@ public class GlobalExceptionHandler {
             .body(new CommonResponse<>(e.getResultCode()));
     }
 
+    // 처리되지 않은 일반 예외 처리
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<CommonResponse<Void>> handleUnexpectedException(Exception e) {
+        log.error("Unexpected exception occurred", e);
+        return ResponseEntity.status(GlobalErrorCode.INTERNAL_SERVER_ERROR.getStatus())
+            .body(new CommonResponse<>(GlobalErrorCode.INTERNAL_SERVER_ERROR));
+    }
+
     // Validation 실패 처리
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<CommonResponse<Void>> handleValidation(MethodArgumentNotValidException e) {
