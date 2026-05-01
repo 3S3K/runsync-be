@@ -11,14 +11,16 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "run_paths")
+@Table(name = "run_paths", uniqueConstraints = {
+        @UniqueConstraint(columnNames = {"record_id", "sequence"})
+})
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class RunPath extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "record_id", nullable = false)
-    private Record runRecord;
+    private RunRecord runRecord;
 
     @Column(columnDefinition = "geometry(Point, 4326)", nullable = false)
     private Point location;
@@ -42,7 +44,7 @@ public class RunPath extends BaseEntity {
     private BigDecimal accuracyM;
 
     @Builder(access = AccessLevel.PRIVATE)
-    private RunPath(Record runRecord, Point location, Integer sequence, LocalDateTime recordedAt,
+    private RunPath(RunRecord runRecord, Point location, Integer sequence, LocalDateTime recordedAt,
                     BigDecimal altitudeM, BigDecimal speedKmh, BigDecimal paceMinPerKm, BigDecimal accuracyM) {
         this.runRecord = runRecord;
         this.location = location;
@@ -54,7 +56,7 @@ public class RunPath extends BaseEntity {
         this.accuracyM = accuracyM;
     }
 
-    public static RunPath of(Record runRecord, Point location, Integer sequence, LocalDateTime recordedAt,
+    public static RunPath of(RunRecord runRecord, Point location, Integer sequence, LocalDateTime recordedAt,
                              BigDecimal altitudeM, BigDecimal speedKmh, BigDecimal paceMinPerKm, BigDecimal accuracyM) {
         return RunPath.builder()
                 .runRecord(runRecord)

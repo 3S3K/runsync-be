@@ -42,6 +42,7 @@ public class RunningSession extends BaseEntity {
         this.user = user;
         this.startTime = startTime;
         this.status = RunningSessionStatus.ACTIVE;
+        this.totalDistance = BigDecimal.ZERO;
     }
 
     public static RunningSession of(User user, LocalDateTime startTime) {

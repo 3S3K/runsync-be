@@ -10,10 +10,10 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "record")
+@Table(name = "run_records")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class Record extends BaseEntity {
+public class RunRecord extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
@@ -48,10 +48,10 @@ public class Record extends BaseEntity {
     private Integer cadence;
 
     @Builder(access = AccessLevel.PRIVATE)
-    private Record(User user, RunningSession runningSession, Integer durationSeconds,
-                   LocalDateTime startTime, BigDecimal distance, BigDecimal averagePace,
-                   Integer calories, BigDecimal elevationGain, Integer averageHeartRate,
-                   Integer cadence) {
+    private RunRecord(User user, RunningSession runningSession, Integer durationSeconds,
+                      LocalDateTime startTime, BigDecimal distance, BigDecimal averagePace,
+                      Integer calories, BigDecimal elevationGain, Integer averageHeartRate,
+                      Integer cadence) {
         this.user = user;
         this.runningSession = runningSession;
         this.durationSeconds = durationSeconds;
@@ -64,11 +64,11 @@ public class Record extends BaseEntity {
         this.cadence = cadence;
     }
 
-    public static Record of(User user, RunningSession runningSession, Integer durationSeconds,
-                            LocalDateTime startTime, BigDecimal distance, BigDecimal averagePace,
-                            Integer calories, BigDecimal elevationGain, Integer averageHeartRate,
-                            Integer cadence) {
-        return Record.builder()
+    public static RunRecord of(User user, RunningSession runningSession, Integer durationSeconds,
+                               LocalDateTime startTime, BigDecimal distance, BigDecimal averagePace,
+                               Integer calories, BigDecimal elevationGain, Integer averageHeartRate,
+                               Integer cadence) {
+        return RunRecord.builder()
                 .user(user)
                 .runningSession(runningSession)
                 .durationSeconds(durationSeconds)
