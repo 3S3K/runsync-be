@@ -23,36 +23,38 @@ public class Record extends BaseEntity {
     @JoinColumn(name = "running_session_id")
     private RunningSession runningSession;
 
-    @Column(name = "duration_time", nullable = false)
-    private Integer durationTime;
+    @Column(name = "duration_seconds", nullable = false)
+    private Integer durationSeconds;
 
     @Column(name = "start_time", nullable = false)
     private LocalDateTime startTime;
 
-    @Column(precision = 5, scale = 2)
+    @Column(name = "distance", precision = 5, scale = 2)
     private BigDecimal distance;
 
     @Column(name = "average_pace", precision = 5, scale = 2)
     private BigDecimal averagePace;
 
+    @Column(name = "calories")
     private Integer calories;
 
-    @Column(name = "elevation_gain", precision = 5, scale = 2)
+    @Column(name = "elevation_gain", precision = 7, scale = 2)
     private BigDecimal elevationGain;
 
     @Column(name = "average_heart_rate")
     private Integer averageHeartRate;
 
+    @Column(name = "cadence")
     private Integer cadence;
 
     @Builder(access = AccessLevel.PRIVATE)
-    private Record(User user, RunningSession runningSession, Integer durationTime,
+    private Record(User user, RunningSession runningSession, Integer durationSeconds,
                    LocalDateTime startTime, BigDecimal distance, BigDecimal averagePace,
                    Integer calories, BigDecimal elevationGain, Integer averageHeartRate,
                    Integer cadence) {
         this.user = user;
         this.runningSession = runningSession;
-        this.durationTime = durationTime;
+        this.durationSeconds = durationSeconds;
         this.startTime = startTime;
         this.distance = distance;
         this.averagePace = averagePace;
@@ -62,14 +64,14 @@ public class Record extends BaseEntity {
         this.cadence = cadence;
     }
 
-    public static Record of(User user, RunningSession runningSession, Integer durationTime,
+    public static Record of(User user, RunningSession runningSession, Integer durationSeconds,
                             LocalDateTime startTime, BigDecimal distance, BigDecimal averagePace,
                             Integer calories, BigDecimal elevationGain, Integer averageHeartRate,
                             Integer cadence) {
         return Record.builder()
                 .user(user)
                 .runningSession(runningSession)
-                .durationTime(durationTime)
+                .durationSeconds(durationSeconds)
                 .startTime(startTime)
                 .distance(distance)
                 .averagePace(averagePace)

@@ -17,7 +17,7 @@ import java.time.LocalDateTime;
 public class RunPath extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "session_id", nullable = false)
+    @JoinColumn(name = "record_id", nullable = false)
     private Record runRecord;
 
     @Column(columnDefinition = "geometry(Point, 4326)", nullable = false)
