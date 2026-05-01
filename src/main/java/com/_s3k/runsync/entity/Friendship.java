@@ -6,14 +6,11 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-import static lombok.AccessLevel.PRIVATE;
-
-
 @Entity
 @Table(name = "friendship")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class Friendship extends BaseEntity{
+public class Friendship extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
@@ -23,9 +20,16 @@ public class Friendship extends BaseEntity{
     @JoinColumn(name = "friend_id", nullable = false)
     private User friend;
 
-    @Builder(access = PRIVATE)
+    @Builder(access = AccessLevel.PRIVATE)
     private Friendship(User user, User friend) {
         this.user = user;
         this.friend = friend;
+    }
+
+    public static Friendship of(User user, User friend) {
+        return Friendship.builder()
+                .user(user)
+                .friend(friend)
+                .build();
     }
 }
