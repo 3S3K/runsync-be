@@ -38,4 +38,9 @@ public class Token extends BaseEntity {
                 .expiryDate(expiryDate)
                 .build();
     }
+
+    public void updateRefreshToken(String refreshToken, LocalDateTime expiryDate) {
+        this.refreshToken = refreshToken;
+        this.expiryDate = expiryDate;
+    }
 }
