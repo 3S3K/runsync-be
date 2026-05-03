@@ -47,3 +47,6 @@ out/
 
 ### application ##
 application.yaml
+
+### Claude Code ###
+CLAUDE.md
