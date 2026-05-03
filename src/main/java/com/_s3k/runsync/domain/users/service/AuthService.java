@@ -38,6 +38,11 @@ public class AuthService {
 		KakaoUserRes userInfo = kakaoOauthClient.getUserInfo(kakaoAccessToken);
 
 		String kakaoId = String.valueOf(userInfo.getId());
+
+		if (userInfo.getKakao_account() == null || userInfo.getKakao_account().getProfile() == null) {
+			throw new GlobalException(AuthErrorCode.UNAUTHORIZED_ACCESS);
+		}
+
 		String nickname = userInfo.getKakao_account().getProfile().getNickname();
 		String profileImage = userInfo.getKakao_account().getProfile().getProfile_image_url();
 

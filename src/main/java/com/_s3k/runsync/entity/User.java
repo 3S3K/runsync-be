@@ -54,7 +54,6 @@ public class User extends BaseEntity {
         this.isDeleted = isDeleted;
         this.birthDate = birthDate;
         this.gender = gender;
-        this.isDeleted = false;
     }
 
     public static User of(String nickname, String providerId, Provider provider,

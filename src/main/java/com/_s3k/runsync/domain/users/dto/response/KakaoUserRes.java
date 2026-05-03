@@ -1,7 +1,5 @@
 package com._s3k.runsync.domain.users.dto.response;
 
-import org.springframework.context.annotation.Profile;
-
 import lombok.Getter;
 
 @Getter
