@@ -4,6 +4,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.PositiveOrZero;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
@@ -23,10 +24,12 @@ public class LocationUpdateReq {
     private Double lastLongitude;
 
     @NotNull
+    @PositiveOrZero
     @Schema(description = "현재까지 뛴 거리 (km)", example = "2.34")
     private Double currentDistance;
 
     @NotNull
+    @PositiveOrZero
     @Schema(description = "현재까지 진행 시간 (초)", example = "754")
     private Integer currentDurationTime;
 }

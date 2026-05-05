@@ -64,7 +64,7 @@ public class RunningSession extends BaseEntity {
         this.totalDistance = totalDistance;
     }
 
-    public void updateLocation(Point point, BigDecimal currentDistance, Integer currentDurationTime){
+    public void updateLocation(Point point, BigDecimal currentDistance, Integer currentDurationTime) {
         this.lastLocation = point;
         this.totalDistance = currentDistance; // 러닝 완료 전까지 현재 거리를 totalDistance에 누적, 종료 시 최종값으로 덮어씀
         this.currentDurationTime = currentDurationTime;

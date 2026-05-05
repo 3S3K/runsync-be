@@ -51,7 +51,7 @@ public class RunSessionService {
     }
 
     @Transactional
-    public void updateLocation(Long userId, Long sessionId, LocationUpdateReq request){
+    public void updateLocation(Long userId, Long sessionId, LocationUpdateReq request) {
         RunningSession session = runningSessionRepository.findById(sessionId)
                 .orElseThrow(() -> new GlobalException(RunSessionErrorCode.SESSION_NOT_FOUND));
 
@@ -67,5 +67,4 @@ public class RunSessionService {
 
         session.updateLocation(point, BigDecimal.valueOf(request.getCurrentDistance()), request.getCurrentDurationTime());
     }
-
 }
