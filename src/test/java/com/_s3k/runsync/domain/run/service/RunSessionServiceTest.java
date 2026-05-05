@@ -1,5 +1,6 @@
 package com._s3k.runsync.domain.run.service;
 
+import com._s3k.runsync.domain.run.dto.request.LocationUpdateReq;
 import com._s3k.runsync.domain.run.dto.request.RunSessionStartReq;
 import com._s3k.runsync.domain.run.dto.response.RunSessionStartRes;
 import com._s3k.runsync.domain.run.exception.RunSessionErrorCode;
@@ -17,6 +18,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.LocalDateTime;
 import java.util.Optional;
@@ -25,6 +27,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
@@ -46,7 +49,7 @@ class RunSessionServiceTest {
         // given
         Long userId = 1L;
         RunSessionStartReq request = new RunSessionStartReq();
-        request.setStartTime(LocalDateTime.now());
+        ReflectionTestUtils.setField(request, "startTime", LocalDateTime.now());
 
         User user = User.createTmpUser(Provider.KAKAO, "kakaoId", "nickname", null);
         given(userRepository.findById(userId)).willReturn(Optional.of(user));
@@ -67,7 +70,7 @@ class RunSessionServiceTest {
         // given
         Long userId = 1L;
         RunSessionStartReq request = new RunSessionStartReq();
-        request.setStartTime(LocalDateTime.now());
+        ReflectionTestUtils.setField(request, "startTime", LocalDateTime.now());
 
         given(userRepository.findById(userId)).willReturn(Optional.empty());
 
@@ -86,7 +89,7 @@ class RunSessionServiceTest {
         // given
         Long userId = 1L;
         RunSessionStartReq request = new RunSessionStartReq();
-        request.setStartTime(LocalDateTime.now());
+        ReflectionTestUtils.setField(request, "startTime", LocalDateTime.now());
 
         User user = User.createTmpUser(Provider.KAKAO, "kakaoId", "nickname", null);
         given(userRepository.findById(userId)).willReturn(Optional.of(user));
@@ -99,5 +102,49 @@ class RunSessionServiceTest {
                         .isEqualTo(RunSessionErrorCode.ACTIVE_SESSION_ALREADY_EXISTS));
 
         verify(runningSessionRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 세션으로 위치 저장 시 예외 발생")
+    void updateLocation_sessionNotFound() {
+        // given
+        given(runningSessionRepository.findById(1L)).willReturn(Optional.empty());
+
+        // when & then
+        assertThatThrownBy(() -> runSessionService.updateLocation(1L, 1L, new LocationUpdateReq()))
+                .isInstanceOf(GlobalException.class)
+                .satisfies(e -> assertThat(((GlobalException) e).getResultCode())
+                        .isEqualTo(RunSessionErrorCode.SESSION_NOT_FOUND));
+    }
+
+    @Test
+    @DisplayName("다른 유저의 세션에 위치 저장 시 예외 발생")
+    void updateLocation_sessionNotOwner() {
+        // given
+        RunningSession session = mock(RunningSession.class);
+        given(session.getUserId()).willReturn(2L);
+        given(runningSessionRepository.findById(1L)).willReturn(Optional.of(session));
+
+        // when & then
+        assertThatThrownBy(() -> runSessionService.updateLocation(1L, 1L, new LocationUpdateReq()))
+                .isInstanceOf(GlobalException.class)
+                .satisfies(e -> assertThat(((GlobalException) e).getResultCode())
+                        .isEqualTo(RunSessionErrorCode.SESSION_NOT_OWNER));
+    }
+
+    @Test
+    @DisplayName("ACTIVE 상태가 아닌 세션에 위치 저장 시 예외 발생")
+    void updateLocation_sessionNotActive() {
+        // given
+        RunningSession session = mock(RunningSession.class);
+        given(session.getUserId()).willReturn(1L);
+        given(session.getStatus()).willReturn(RunningSessionStatus.COMPLETED);
+        given(runningSessionRepository.findById(1L)).willReturn(Optional.of(session));
+
+        // when & then
+        assertThatThrownBy(() -> runSessionService.updateLocation(1L, 1L, new LocationUpdateReq()))
+                .isInstanceOf(GlobalException.class)
+                .satisfies(e -> assertThat(((GlobalException) e).getResultCode())
+                        .isEqualTo(RunSessionErrorCode.SESSION_NOT_ACTIVE));
     }
 }
