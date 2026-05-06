@@ -37,6 +37,12 @@ public class RunningSession extends BaseEntity {
     @Column(name = "last_location", columnDefinition = "geometry(Point, 4326)")
     private Point lastLocation;
 
+    @Column(name = "current_duration_time")
+    private Integer currentDurationTime;
+
+    @Column(name = "user_id", insertable = false, updatable = false)
+    private Long userId;
+
     @Builder(access = AccessLevel.PRIVATE)
     private RunningSession(User user, LocalDateTime startTime) {
         this.user = user;
@@ -58,6 +64,12 @@ public class RunningSession extends BaseEntity {
         this.totalDistance = totalDistance;
     }
 
+    public void updateLocation(Point point, BigDecimal currentDistance, Integer currentDurationTime) {
+        this.lastLocation = point;
+        this.totalDistance = currentDistance; // 러닝 완료 전까지 현재 거리를 totalDistance에 누적, 종료 시 최종값으로 덮어씀
+        this.currentDurationTime = currentDurationTime;
+    }
+
     public void pause() {
         this.status = RunningSessionStatus.PAUSED;
     }
@@ -66,7 +78,4 @@ public class RunningSession extends BaseEntity {
         this.status = RunningSessionStatus.ACTIVE;
     }
 
-    public void updateLastLocation(Point point) {
-        this.lastLocation = point;
-    }
 }
