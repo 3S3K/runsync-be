@@ -88,17 +88,4 @@ public class User extends BaseEntity {
     }
 
     public void reactivate() { this.isDeleted = false; }
-
-    /**
-     * 사용자 정보 선택적 업데이트
-     */
-    public void updateInfo(String nickname, String profileImage) {
-        if (nickname != null && !nickname.isBlank()) {
-            this.nickname = nickname;
-        }
-        if (profileImage != null) {
-            this.profileImage = profileImage;
-        }
-    }
-
 }

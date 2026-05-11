@@ -19,6 +19,4 @@ public enum AuthErrorCode implements ResultCode {
 	private final int code;
 	private final String message;
 
-	void AUTH_005(HttpStatus.UNAUTHORIZED, "AUTH_005", "인증이 필요합니다."),
-
 }
