@@ -40,6 +40,7 @@ public class SecurityConfig {
 				.requestMatchers("/api/auth/login", "/api/auth/reissue", "/api/auth/logout").permitAll()
 				.requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-resources/**", "/webjars/**").permitAll()
 				.requestMatchers("/health").permitAll()
+				.requestMatchers("/ws/**").permitAll()
 				.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 				.anyRequest().authenticated()
 			)
