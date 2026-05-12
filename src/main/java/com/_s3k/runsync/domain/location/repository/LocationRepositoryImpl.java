@@ -9,7 +9,7 @@ import org.springframework.data.geo.Point;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Repository;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.Map;
 import java.util.Set;
 
@@ -35,10 +35,12 @@ public class LocationRepositoryImpl implements LocationRepository {
                 "lat", latitude,
                 "lng", longitude,
                 "speed", speed,
-                "recordedAt", LocalDateTime.now().toString()
+                "recordedAt", Instant.now().toString()
         ));
+        String key = "run_session:" + sessionId + ":paths";
         try {
-            redisTemplate.opsForList().rightPush("run_session:" + sessionId + ":paths", pathJson);
+            redisTemplate.opsForList().rightPush(key, pathJson);
+            redisTemplate.expire(key, java.time.Duration.ofDays(1));
         } catch (Exception e) {
             throw new GlobalException(LocationErrorCode.LOCATION_SAVE_FAILED);
         }

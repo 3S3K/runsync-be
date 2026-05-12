@@ -24,13 +24,14 @@ public class LocationMessageHandler {
 
     @MessageMapping("/location")
     public void handleLocation(WebSocketMessage<LocationUpdateReq> message, Principal principal) {
+        if (principal == null) return;
         Long userId = Long.parseLong(principal.getName());
         LocationUpdateReq data = message.getData();
 
         locationService.saveLocation(userId, data);
 
         Set<String> friendIds = locationService.getFriendIds(userId);
-        if (friendIds == null || friendIds.isEmpty()) return;
+        if (friendIds.isEmpty()) return;
 
         FriendLocationRes response = FriendLocationRes.of(userId, data.getLatitude(), data.getLongitude());
 

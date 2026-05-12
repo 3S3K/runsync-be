@@ -16,7 +16,7 @@ public class LocationService {
     private final LocationRepository locationRepository;
 
     public void saveLocation(Long userId, LocationUpdateReq data) {
-        if (data.getLatitude() == null || data.getLongitude() == null || data.getSessionId() == null) {
+        if (data == null || data.getLatitude() == null || data.getLongitude() == null || data.getSessionId() == null) {
             throw new GlobalException(LocationErrorCode.INVALID_LOCATION_DATA);
         }
 

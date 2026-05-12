@@ -65,6 +65,18 @@ class LocationServiceTest {
     }
 
     @Test
+    @DisplayName("data가 null이면 예외 발생")
+    void saveLocation_dataNul_throwsException() {
+        // when & then
+        assertThatThrownBy(() -> locationService.saveLocation(1L, null))
+                .isInstanceOf(GlobalException.class)
+                .satisfies(e -> assertThat(((GlobalException) e).getResultCode())
+                        .isEqualTo(LocationErrorCode.INVALID_LOCATION_DATA));
+
+        verify(locationRepository, never()).saveGeoLocation(anyLong(), anyDouble(), anyDouble());
+    }
+
+    @Test
     @DisplayName("위도가 null이면 예외 발생")
     void saveLocation_latitudeNull_throwsException() {
         // given
