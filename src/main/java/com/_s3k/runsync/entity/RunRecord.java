@@ -8,6 +8,8 @@ import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "run_records")
@@ -47,6 +49,9 @@ public class RunRecord extends BaseEntity {
     @Column(name = "cadence")
     private Integer cadence;
 
+    @OneToMany(mappedBy = "runRecord", cascade = CascadeType.PERSIST)
+    private List<RunPath> paths = new ArrayList<>();
+
     @Builder(access = AccessLevel.PRIVATE)
     private RunRecord(User user, RunningSession runningSession, Integer durationSeconds,
                       LocalDateTime startTime, BigDecimal distance, BigDecimal averagePace,
@@ -62,6 +67,11 @@ public class RunRecord extends BaseEntity {
         this.elevationGain = elevationGain;
         this.averageHeartRate = averageHeartRate;
         this.cadence = cadence;
+        this.paths = new ArrayList<>();
+    }
+
+    public void addPaths(List<RunPath> runPaths) {
+        this.paths.addAll(runPaths);
     }
 
     public static RunRecord of(User user, RunningSession runningSession, Integer durationSeconds,

@@ -38,37 +38,23 @@ class LocationServiceTest {
     }
 
     @Test
-    @DisplayName("위치 저장 성공")
-    void saveLocation_success() {
+    @DisplayName("GEO 위치 저장 성공")
+    void saveGeoLocation_success() {
         // given
         LocationUpdateReq req = createReq(1L, 37.5665, 126.9780, 3.5);
 
         // when
-        locationService.saveLocation(1L, req);
+        locationService.saveGeoLocation(1L, req);
 
         // then
         verify(locationRepository).saveGeoLocation(1L, 126.9780, 37.5665);
-        verify(locationRepository).appendPath(1L, 37.5665, 126.9780, 3.5);
-    }
-
-    @Test
-    @DisplayName("speed가 null이면 0.0으로 저장")
-    void saveLocation_speedNull_defaultsToZero() {
-        // given
-        LocationUpdateReq req = createReq(1L, 37.5665, 126.9780, null);
-
-        // when
-        locationService.saveLocation(1L, req);
-
-        // then
-        verify(locationRepository).appendPath(1L, 37.5665, 126.9780, 0.0);
     }
 
     @Test
     @DisplayName("data가 null이면 예외 발생")
-    void saveLocation_dataNul_throwsException() {
+    void saveGeoLocation_dataNullThrowsException() {
         // when & then
-        assertThatThrownBy(() -> locationService.saveLocation(1L, null))
+        assertThatThrownBy(() -> locationService.saveGeoLocation(1L, null))
                 .isInstanceOf(GlobalException.class)
                 .satisfies(e -> assertThat(((GlobalException) e).getResultCode())
                         .isEqualTo(LocationErrorCode.INVALID_LOCATION_DATA));
@@ -78,12 +64,12 @@ class LocationServiceTest {
 
     @Test
     @DisplayName("위도가 null이면 예외 발생")
-    void saveLocation_latitudeNull_throwsException() {
+    void saveGeoLocation_latitudeNullThrowsException() {
         // given
         LocationUpdateReq req = createReq(1L, null, 126.9780, 3.5);
 
         // when & then
-        assertThatThrownBy(() -> locationService.saveLocation(1L, req))
+        assertThatThrownBy(() -> locationService.saveGeoLocation(1L, req))
                 .isInstanceOf(GlobalException.class)
                 .satisfies(e -> assertThat(((GlobalException) e).getResultCode())
                         .isEqualTo(LocationErrorCode.INVALID_LOCATION_DATA));
@@ -93,27 +79,12 @@ class LocationServiceTest {
 
     @Test
     @DisplayName("경도가 null이면 예외 발생")
-    void saveLocation_longitudeNull_throwsException() {
+    void saveGeoLocation_longitudeNullThrowsException() {
         // given
         LocationUpdateReq req = createReq(1L, 37.5665, null, 3.5);
 
         // when & then
-        assertThatThrownBy(() -> locationService.saveLocation(1L, req))
-                .isInstanceOf(GlobalException.class)
-                .satisfies(e -> assertThat(((GlobalException) e).getResultCode())
-                        .isEqualTo(LocationErrorCode.INVALID_LOCATION_DATA));
-
-        verify(locationRepository, never()).saveGeoLocation(anyLong(), anyDouble(), anyDouble());
-    }
-
-    @Test
-    @DisplayName("세션 ID가 null이면 예외 발생")
-    void saveLocation_sessionIdNull_throwsException() {
-        // given
-        LocationUpdateReq req = createReq(null, 37.5665, 126.9780, 3.5);
-
-        // when & then
-        assertThatThrownBy(() -> locationService.saveLocation(1L, req))
+        assertThatThrownBy(() -> locationService.saveGeoLocation(1L, req))
                 .isInstanceOf(GlobalException.class)
                 .satisfies(e -> assertThat(((GlobalException) e).getResultCode())
                         .isEqualTo(LocationErrorCode.INVALID_LOCATION_DATA));

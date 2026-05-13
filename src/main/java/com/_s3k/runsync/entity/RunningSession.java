@@ -6,7 +6,10 @@ import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.Point;
+import org.locationtech.jts.geom.PrecisionModel;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -16,6 +19,8 @@ import java.time.LocalDateTime;
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class RunningSession extends BaseEntity {
+
+    private static final GeometryFactory GEOMETRY_FACTORY = new GeometryFactory(new PrecisionModel(), 4326);
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
@@ -64,10 +69,21 @@ public class RunningSession extends BaseEntity {
         this.totalDistance = totalDistance;
     }
 
-    public void updateLocation(Point point, BigDecimal currentDistance, Integer currentDurationTime) {
-        this.lastLocation = point;
-        this.totalDistance = currentDistance; // 러닝 완료 전까지 현재 거리를 totalDistance에 누적, 종료 시 최종값으로 덮어씀
+    public void updateLocation(double latitude, double longitude, BigDecimal currentDistance, Integer currentDurationTime) {
+        this.lastLocation = GEOMETRY_FACTORY.createPoint(new Coordinate(longitude, latitude));
+        this.totalDistance = currentDistance;
         this.currentDurationTime = currentDurationTime;
+    }
+
+    public RunRecord createRecord(BigDecimal totalDistance) {
+        return RunRecord.of(
+                this.user,
+                this,
+                this.currentDurationTime != null ? this.currentDurationTime : 0,
+                this.startTime,
+                totalDistance,
+                null, null, null, null, null
+        );
     }
 
     public void pause() {

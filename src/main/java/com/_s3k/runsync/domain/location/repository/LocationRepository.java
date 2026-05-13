@@ -6,8 +6,6 @@ public interface LocationRepository {
 
     void saveGeoLocation(Long userId, double longitude, double latitude);
 
-    void appendPath(Long sessionId, double latitude, double longitude, double speed);
-
     Set<String> findFriendIds(Long userId);
 
     void deleteGeoLocation(Long userId);

@@ -2,8 +2,6 @@ package com._s3k.runsync.domain.location.repository;
 
 import com._s3k.runsync.domain.location.exception.LocationErrorCode;
 import com._s3k.runsync.global.exception.GlobalException;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -12,7 +10,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.geo.Point;
 import org.springframework.data.redis.core.GeoOperations;
-import org.springframework.data.redis.core.ListOperations;
 import org.springframework.data.redis.core.SetOperations;
 import org.springframework.data.redis.core.StringRedisTemplate;
 
@@ -35,9 +32,6 @@ class LocationRepositoryImplTest {
 
     @Mock
     private StringRedisTemplate redisTemplate;
-
-    @Mock
-    private ObjectMapper objectMapper;
 
     @Test
     @DisplayName("위치 Geo 저장 성공")
@@ -63,50 +57,6 @@ class LocationRepositoryImplTest {
 
         // when & then
         assertThatThrownBy(() -> locationRepository.saveGeoLocation(1L, 126.9780, 37.5665))
-                .isInstanceOf(GlobalException.class)
-                .satisfies(e -> assertThat(((GlobalException) e).getResultCode())
-                        .isEqualTo(LocationErrorCode.LOCATION_SAVE_FAILED));
-    }
-
-    @Test
-    @DisplayName("경로 저장 성공")
-    void appendPath_success() throws JsonProcessingException {
-        // given
-        ListOperations<String, String> listOps = mock(ListOperations.class);
-        given(redisTemplate.opsForList()).willReturn(listOps);
-        given(objectMapper.writeValueAsString(any())).willReturn("{\"lat\":37.5665}");
-
-        // when
-        locationRepository.appendPath(1L, 37.5665, 126.9780, 3.5);
-
-        // then
-        verify(listOps).rightPush(anyString(), anyString());
-    }
-
-    @Test
-    @DisplayName("경로 저장 중 Redis 오류 시 예외 발생")
-    void appendPath_redisError_throwsException() throws JsonProcessingException {
-        // given
-        ListOperations<String, String> listOps = mock(ListOperations.class);
-        given(redisTemplate.opsForList()).willReturn(listOps);
-        given(objectMapper.writeValueAsString(any())).willReturn("{\"lat\":37.5665}");
-        given(listOps.rightPush(anyString(), anyString())).willThrow(RuntimeException.class);
-
-        // when & then
-        assertThatThrownBy(() -> locationRepository.appendPath(1L, 37.5665, 126.9780, 3.5))
-                .isInstanceOf(GlobalException.class)
-                .satisfies(e -> assertThat(((GlobalException) e).getResultCode())
-                        .isEqualTo(LocationErrorCode.LOCATION_SAVE_FAILED));
-    }
-
-    @Test
-    @DisplayName("JSON 변환 실패 시 예외 발생")
-    void appendPath_jsonError_throwsException() throws JsonProcessingException {
-        // given
-        given(objectMapper.writeValueAsString(any())).willThrow(JsonProcessingException.class);
-
-        // when & then
-        assertThatThrownBy(() -> locationRepository.appendPath(1L, 37.5665, 126.9780, 3.5))
                 .isInstanceOf(GlobalException.class)
                 .satisfies(e -> assertThat(((GlobalException) e).getResultCode())
                         .isEqualTo(LocationErrorCode.LOCATION_SAVE_FAILED));
