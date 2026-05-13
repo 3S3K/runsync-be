@@ -15,18 +15,12 @@ public class LocationService {
 
     private final LocationRepository locationRepository;
 
-    public void saveLocation(Long userId, LocationUpdateReq data) {
-        if (data == null || data.getLatitude() == null || data.getLongitude() == null || data.getSessionId() == null) {
+    public void saveGeoLocation(Long userId, LocationUpdateReq data) {
+        if (data == null || data.getLatitude() == null || data.getLongitude() == null) {
             throw new GlobalException(LocationErrorCode.INVALID_LOCATION_DATA);
         }
 
         locationRepository.saveGeoLocation(userId, data.getLongitude(), data.getLatitude());
-        locationRepository.appendPath(
-                data.getSessionId(),
-                data.getLatitude(),
-                data.getLongitude(),
-                data.getSpeed() != null ? data.getSpeed() : 0.0
-        );
     }
 
     public Set<String> getFriendIds(Long userId) {
