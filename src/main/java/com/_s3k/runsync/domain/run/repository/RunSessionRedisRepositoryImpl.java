@@ -1,5 +1,7 @@
 package com._s3k.runsync.domain.run.repository;
 
+import com._s3k.runsync.domain.run.exception.RunSessionErrorCode;
+import com._s3k.runsync.global.exception.GlobalException;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -20,7 +22,6 @@ public class RunSessionRedisRepositoryImpl implements RunSessionRedisRepository 
 
     @Override
     public void appendPath(Long sessionId, double latitude, double longitude, double speed) {
-        String key = "run_session:" + sessionId + ":paths";
         try {
             String pathJson = objectMapper.writeValueAsString(Map.of(
                     "lat", latitude,
@@ -28,26 +29,34 @@ public class RunSessionRedisRepositoryImpl implements RunSessionRedisRepository 
                     "speed", speed,
                     "recordedAt", Instant.now().toString()
             ));
-            redisTemplate.opsForList().rightPush(key, pathJson);
-            redisTemplate.expire(key, Duration.ofDays(1));
+            redisTemplate.opsForList().rightPush(pathKey(sessionId), pathJson);
+            redisTemplate.expire(pathKey(sessionId), Duration.ofDays(1));
         } catch (JsonProcessingException e) {
-            throw new RuntimeException("경로 직렬화 실패", e);
+            throw new GlobalException(RunSessionErrorCode.PATH_SERIALIZE_FAILED);
         }
     }
 
     @Override
     public List<String> getPaths(Long sessionId) {
-        List<String> paths = redisTemplate.opsForList().range("run_session:" + sessionId + ":paths", 0, -1);
+        List<String> paths = redisTemplate.opsForList().range(pathKey(sessionId), 0, -1);
         return paths != null ? paths : List.of();
     }
 
     @Override
     public void deletePaths(Long sessionId) {
-        redisTemplate.delete("run_session:" + sessionId + ":paths");
+        redisTemplate.delete(pathKey(sessionId));
     }
 
     @Override
     public void deleteState(Long sessionId) {
-        redisTemplate.delete("run_session:" + sessionId + ":state");
+        redisTemplate.delete(stateKey(sessionId));
+    }
+
+    private String pathKey(Long sessionId) {
+        return "run_session:" + sessionId + ":paths";
+    }
+
+    private String stateKey(Long sessionId) {
+        return "run_session:" + sessionId + ":state";
     }
 }

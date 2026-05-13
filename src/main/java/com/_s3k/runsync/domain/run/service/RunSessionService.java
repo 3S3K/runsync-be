@@ -38,6 +38,8 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class RunSessionService {
 
+    private static final TypeReference<Map<String, Object>> PATH_TYPE_REF = new TypeReference<>() {};
+
     private final UserRepository userRepository;
     private final RunningSessionRepository runningSessionRepository;
     private final RunRecordRepository runRecordRepository;
@@ -123,7 +125,7 @@ public class RunSessionService {
         List<RunPath> paths = new ArrayList<>();
         for (int i = 0; i < pathJsonList.size(); i++) {
             try {
-                Map<String, Object> pathData = objectMapper.readValue(pathJsonList.get(i), new TypeReference<>() {});
+                Map<String, Object> pathData = objectMapper.readValue(pathJsonList.get(i), PATH_TYPE_REF);
                 double lat = ((Number) pathData.get("lat")).doubleValue();
                 double lng = ((Number) pathData.get("lng")).doubleValue();
                 double speed = ((Number) pathData.get("speed")).doubleValue();
