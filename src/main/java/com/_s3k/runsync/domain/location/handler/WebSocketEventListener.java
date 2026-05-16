@@ -44,7 +44,13 @@ public class WebSocketEventListener {
     }
 
     private void notifyFriends(Long userId, FriendStatus status) {
-        Set<String> friendIds = locationService.getFriendIds(userId);
+        Set<String> friendIds;
+        try {
+            friendIds = locationService.getFriendIds(userId);
+        } catch (Exception e) {
+            // 친구 목록 기능 미구현 상태에서 예외 발생 시 연결이 끊기는 것을 방지 (임시)
+            return;
+        }
         if (friendIds == null || friendIds.isEmpty()) return;
 
         FriendStatusRes statusData = FriendStatusRes.of(userId, status);
