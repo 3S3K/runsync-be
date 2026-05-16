@@ -5,6 +5,7 @@ import com._s3k.runsync.domain.location.service.LocationService;
 import com._s3k.runsync.entity.enums.FriendStatus;
 import com._s3k.runsync.global.websocket.dto.WebSocketMessage;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
@@ -15,6 +16,7 @@ import org.springframework.web.socket.messaging.SessionDisconnectEvent;
 import java.security.Principal;
 import java.util.Set;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class WebSocketEventListener {
@@ -49,6 +51,7 @@ public class WebSocketEventListener {
             friendIds = locationService.getFriendIds(userId);
         } catch (Exception e) {
             // 친구 목록 기능 미구현 상태에서 예외 발생 시 연결이 끊기는 것을 방지 (임시)
+            log.warn("친구 목록 조회 실패 userId={}: {}", userId, e.getMessage());
             return;
         }
         if (friendIds == null || friendIds.isEmpty()) return;
