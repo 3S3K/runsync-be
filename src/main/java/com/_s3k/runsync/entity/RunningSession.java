@@ -1,6 +1,8 @@
 package com._s3k.runsync.entity;
 
+import com._s3k.runsync.domain.run.exception.RunSessionErrorCode;
 import com._s3k.runsync.entity.enums.RunningSessionStatus;
+import com._s3k.runsync.global.exception.GlobalException;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Builder;
@@ -13,6 +15,7 @@ import org.locationtech.jts.geom.PrecisionModel;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.Objects;
 
 @Entity
 @Table(name = "running_session")
@@ -84,6 +87,24 @@ public class RunningSession extends BaseEntity {
                 totalDistance,
                 null, null, null, null, null
         );
+    }
+
+    public void validateOwner(Long userId) {
+        if (!Objects.equals(this.userId, userId)) {
+            throw new GlobalException(RunSessionErrorCode.SESSION_NOT_OWNER);
+        }
+    }
+
+    public void validateActive() {
+        if (this.status != RunningSessionStatus.ACTIVE) {
+            throw new GlobalException(RunSessionErrorCode.SESSION_NOT_ACTIVE);
+        }
+    }
+
+    public void validateCompleted() {
+        if (this.status != RunningSessionStatus.COMPLETED) {
+            throw new GlobalException(RunSessionErrorCode.SESSION_NOT_COMPLETED);
+        }
     }
 
     public void pause() {

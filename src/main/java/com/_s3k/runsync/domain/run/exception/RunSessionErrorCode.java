@@ -14,7 +14,9 @@ public enum RunSessionErrorCode implements ResultCode {
     SESSION_NOT_OWNER(HttpStatus.FORBIDDEN, 3003, "해당 러닝 세션에 대한 권한이 없습니다."),
     SESSION_NOT_ACTIVE(HttpStatus.BAD_REQUEST, 3004, "진행 중인 러닝 세션이 아닙니다."),
     PATH_PARSE_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, 3005, "러닝 경로 처리에 실패했습니다."),
-    PATH_SERIALIZE_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, 3006, "경로 직렬화에 실패했습니다.");
+    PATH_SERIALIZE_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, 3006, "경로 직렬화에 실패했습니다."),
+    SESSION_NOT_COMPLETED(HttpStatus.BAD_REQUEST, 3007, "완료된 러닝 세션이 아닙니다."),
+    RUN_RECORD_NOT_FOUND(HttpStatus.NOT_FOUND, 3008, "러닝 기록을 찾을 수 없습니다.");
 
     private final HttpStatus status;
     private final int code;
