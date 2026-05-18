@@ -1,10 +1,14 @@
 package com._s3k.runsync.entity;
 
+import com._s3k.runsync.domain.run.exception.RunRecordErrorCode;
+import com._s3k.runsync.global.exception.GlobalException;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+
+import java.util.Objects;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -21,6 +25,9 @@ public class RunRecord extends BaseEntity {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
+    @Column(name = "user_id", insertable = false, updatable = false)
+    private Long userId;
+
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "running_session_id")
     private RunningSession runningSession;
@@ -31,7 +38,7 @@ public class RunRecord extends BaseEntity {
     @Column(name = "start_time", nullable = false)
     private LocalDateTime startTime;
 
-    @Column(name = "distance", precision = 5, scale = 2)
+    @Column(name = "distance", precision = 5, scale = 2, nullable = false)
     private BigDecimal distance;
 
     @Column(name = "average_pace", precision = 5, scale = 2)
@@ -68,6 +75,12 @@ public class RunRecord extends BaseEntity {
         this.averageHeartRate = averageHeartRate;
         this.cadence = cadence;
         this.paths = new ArrayList<>();
+    }
+
+    public void validateOwner(Long userId) {
+        if (!Objects.equals(this.userId, userId)) {
+            throw new GlobalException(RunRecordErrorCode.RECORD_NOT_OWNER);
+        }
     }
 
     public void addPaths(List<RunPath> runPaths) {
