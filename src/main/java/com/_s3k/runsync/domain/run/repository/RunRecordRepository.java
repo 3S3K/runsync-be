@@ -11,6 +11,6 @@ public interface RunRecordRepository extends JpaRepository<RunRecord, Long> {
 
     Optional<RunRecord> findByRunningSessionId(Long sessionId);
 
-    @Query("SELECT r FROM RunRecord r LEFT JOIN FETCH r.paths p WHERE r.id = :recordId ORDER BY p.sequence ASC")
+    @Query("SELECT r FROM RunRecord r LEFT JOIN FETCH r.paths WHERE r.id = :recordId")
     Optional<RunRecord> findByIdWithPaths(@Param("recordId") Long recordId);
 }

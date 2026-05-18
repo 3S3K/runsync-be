@@ -56,6 +56,7 @@ public class RunRecord extends BaseEntity {
     @Column(name = "cadence")
     private Integer cadence;
 
+    @OrderBy("sequence ASC")
     @OneToMany(mappedBy = "runRecord", cascade = CascadeType.PERSIST)
     private List<RunPath> paths = new ArrayList<>();
 
