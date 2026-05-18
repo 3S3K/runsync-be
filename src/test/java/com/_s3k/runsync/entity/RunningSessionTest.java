@@ -1,14 +1,18 @@
 package com._s3k.runsync.entity;
 
+import com._s3k.runsync.domain.run.exception.RunSessionErrorCode;
 import com._s3k.runsync.entity.enums.Provider;
 import com._s3k.runsync.entity.enums.RunningSessionStatus;
+import com._s3k.runsync.global.exception.GlobalException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class RunningSessionTest {
 
@@ -104,5 +108,84 @@ class RunningSessionTest {
         assertThat(record.getDurationSeconds()).isEqualTo(600);
         assertThat(record.getStartTime()).isEqualTo(startTime);
         assertThat(record.getDistance()).isEqualByComparingTo(BigDecimal.valueOf(5.0));
+    }
+
+    @Test
+    @DisplayName("validateOwner - 소유자가 맞으면 예외 없이 통과한다")
+    void validateOwner_success() {
+        // given
+        User user = User.createTmpUser(Provider.KAKAO, "kakaoId", "nickname", null);
+        RunningSession session = RunningSession.of(user, LocalDateTime.now());
+        ReflectionTestUtils.setField(session, "userId", 1L);
+
+        // when & then
+        session.validateOwner(1L);
+    }
+
+    @Test
+    @DisplayName("validateOwner - 다른 유저면 SESSION_NOT_OWNER 예외 발생")
+    void validateOwner_notOwner() {
+        // given
+        User user = User.createTmpUser(Provider.KAKAO, "kakaoId", "nickname", null);
+        RunningSession session = RunningSession.of(user, LocalDateTime.now());
+        ReflectionTestUtils.setField(session, "userId", 1L);
+
+        // when & then
+        assertThatThrownBy(() -> session.validateOwner(2L))
+                .isInstanceOf(GlobalException.class)
+                .satisfies(e -> assertThat(((GlobalException) e).getResultCode())
+                        .isEqualTo(RunSessionErrorCode.SESSION_NOT_OWNER));
+    }
+
+    @Test
+    @DisplayName("validateActive - ACTIVE 상태면 예외 없이 통과한다")
+    void validateActive_success() {
+        // given
+        User user = User.createTmpUser(Provider.KAKAO, "kakaoId", "nickname", null);
+        RunningSession session = RunningSession.of(user, LocalDateTime.now());
+
+        // when & then
+        session.validateActive();
+    }
+
+    @Test
+    @DisplayName("validateActive - ACTIVE 아니면 SESSION_NOT_ACTIVE 예외 발생")
+    void validateActive_notActive() {
+        // given
+        User user = User.createTmpUser(Provider.KAKAO, "kakaoId", "nickname", null);
+        RunningSession session = RunningSession.of(user, LocalDateTime.now());
+        session.complete(LocalDateTime.now().plusMinutes(30), BigDecimal.valueOf(5.0));
+
+        // when & then
+        assertThatThrownBy(session::validateActive)
+                .isInstanceOf(GlobalException.class)
+                .satisfies(e -> assertThat(((GlobalException) e).getResultCode())
+                        .isEqualTo(RunSessionErrorCode.SESSION_NOT_ACTIVE));
+    }
+
+    @Test
+    @DisplayName("validateCompleted - COMPLETED 상태면 예외 없이 통과한다")
+    void validateCompleted_success() {
+        // given
+        User user = User.createTmpUser(Provider.KAKAO, "kakaoId", "nickname", null);
+        RunningSession session = RunningSession.of(user, LocalDateTime.now());
+        session.complete(LocalDateTime.now().plusMinutes(30), BigDecimal.valueOf(5.0));
+
+        // when & then
+        session.validateCompleted();
+    }
+
+    @Test
+    @DisplayName("validateCompleted - COMPLETED 아니면 SESSION_NOT_COMPLETED 예외 발생")
+    void validateCompleted_notCompleted() {
+        // given
+        User user = User.createTmpUser(Provider.KAKAO, "kakaoId", "nickname", null);
+        RunningSession session = RunningSession.of(user, LocalDateTime.now());
+
+        // when & then
+        assertThatThrownBy(session::validateCompleted)
+                .isInstanceOf(GlobalException.class)
+                .satisfies(e -> assertThat(((GlobalException) e).getResultCode())
+                        .isEqualTo(RunSessionErrorCode.SESSION_NOT_COMPLETED));
     }
 }

@@ -2,8 +2,10 @@ package com._s3k.runsync.domain.run.service;
 
 import com._s3k.runsync.domain.location.service.LocationService;
 import com._s3k.runsync.domain.run.dto.request.LocationUpdateReq;
+import com._s3k.runsync.domain.run.dto.request.RunRecordDetailReq;
 import com._s3k.runsync.domain.run.dto.request.RunSessionEndReq;
 import com._s3k.runsync.domain.run.dto.request.RunSessionStartReq;
+import com._s3k.runsync.domain.run.dto.response.RunRecordDetailRes;
 import com._s3k.runsync.domain.run.dto.response.RunSessionEndRes;
 import com._s3k.runsync.domain.run.dto.response.RunSessionStartRes;
 import com._s3k.runsync.domain.run.exception.RunSessionErrorCode;
@@ -68,6 +70,28 @@ public class RunSessionService {
         }
     }
 
+    @Transactional
+    public RunRecordDetailRes saveRunRecordDetail(Long userId, Long sessionId, RunRecordDetailReq request) {
+        RunningSession session = runningSessionRepository.findById(sessionId)
+                .orElseThrow(() -> new GlobalException(RunSessionErrorCode.SESSION_NOT_FOUND));
+
+        session.validateOwner(userId);
+        session.validateCompleted();
+
+        RunRecord record = runRecordRepository.findByRunningSessionId(sessionId)
+                .orElseThrow(() -> new GlobalException(RunSessionErrorCode.RUN_RECORD_NOT_FOUND));
+
+        record.updateDetails(
+                request.getAveragePaceAsBigDecimal(),
+                request.getCalories(),
+                request.getAverageHeartRate(),
+                request.getCadence(),
+                request.getElevationGainAsBigDecimal()
+        );
+
+        return RunRecordDetailRes.of(record);
+    }
+
     public void appendPath(Long sessionId, double latitude, double longitude, double speed) {
         runSessionRedisRepository.appendPath(sessionId, latitude, longitude, speed);
     }
@@ -77,13 +101,8 @@ public class RunSessionService {
         RunningSession session = runningSessionRepository.findById(sessionId)
                 .orElseThrow(() -> new GlobalException(RunSessionErrorCode.SESSION_NOT_FOUND));
 
-        if (!session.getUserId().equals(userId)) {
-            throw new GlobalException(RunSessionErrorCode.SESSION_NOT_OWNER);
-        }
-
-        if (session.getStatus() != RunningSessionStatus.ACTIVE) {
-            throw new GlobalException(RunSessionErrorCode.SESSION_NOT_ACTIVE);
-        }
+        session.validateOwner(userId);
+        session.validateActive();
 
         session.updateLocation(request.getLastLatitude(), request.getLastLongitude(),
                 BigDecimal.valueOf(request.getCurrentDistance()), request.getCurrentDurationTime());
@@ -94,13 +113,8 @@ public class RunSessionService {
         RunningSession session = runningSessionRepository.findById(sessionId)
                 .orElseThrow(() -> new GlobalException(RunSessionErrorCode.SESSION_NOT_FOUND));
 
-        if (!session.getUserId().equals(userId)) {
-            throw new GlobalException(RunSessionErrorCode.SESSION_NOT_OWNER);
-        }
-
-        if (session.getStatus() != RunningSessionStatus.ACTIVE) {
-            throw new GlobalException(RunSessionErrorCode.SESSION_NOT_ACTIVE);
-        }
+        session.validateOwner(userId);
+        session.validateActive();
 
         BigDecimal totalDistance = BigDecimal.valueOf(request.getTotalDistance());
         session.complete(request.getEndTime(), totalDistance);
