@@ -1,7 +1,9 @@
 package com._s3k.runsync.domain.run.controller;
 
 import com._s3k.runsync.domain.run.dto.request.LocationUpdateReq;
+import com._s3k.runsync.domain.run.dto.request.RunSessionEndReq;
 import com._s3k.runsync.domain.run.dto.request.RunSessionStartReq;
+import com._s3k.runsync.domain.run.dto.response.RunSessionEndRes;
 import com._s3k.runsync.domain.run.dto.response.RunSessionStartRes;
 import com._s3k.runsync.domain.run.service.RunSessionService;
 import com._s3k.runsync.global.common.dto.CommonResponse;
@@ -41,5 +43,15 @@ public class RunSessionController {
     ) {
         runSessionService.updateLocation(userId, sessionId, request);
         return CommonResponse.success(null);
+    }
+
+    @PatchMapping("/{sessionId}")
+    @Operation(summary = "러닝 종료", description = "러닝 세션을 종료합니다. 로그인 필요")
+    public CommonResponse<RunSessionEndRes> endRunSession(
+            @AuthenticationPrincipal Long userId,
+            @PathVariable Long sessionId,
+            @Valid @RequestBody RunSessionEndReq request
+    ) {
+        return CommonResponse.success(runSessionService.endRunSession(userId, sessionId, request));
     }
 }

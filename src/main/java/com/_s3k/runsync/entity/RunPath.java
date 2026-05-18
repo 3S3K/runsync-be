@@ -5,7 +5,10 @@ import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.Point;
+import org.locationtech.jts.geom.PrecisionModel;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -17,6 +20,8 @@ import java.time.LocalDateTime;
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class RunPath extends BaseEntity {
+
+    private static final GeometryFactory GEOMETRY_FACTORY = new GeometryFactory(new PrecisionModel(), 4326);
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "record_id", nullable = false)
@@ -56,11 +61,12 @@ public class RunPath extends BaseEntity {
         this.accuracyM = accuracyM;
     }
 
-    public static RunPath of(RunRecord runRecord, Point location, Integer sequence, LocalDateTime recordedAt,
-                             BigDecimal altitudeM, BigDecimal speedKmh, BigDecimal paceMinPerKm, BigDecimal accuracyM) {
+    public static RunPath of(RunRecord runRecord, double latitude, double longitude, Integer sequence,
+                             LocalDateTime recordedAt, BigDecimal altitudeM, BigDecimal speedKmh,
+                             BigDecimal paceMinPerKm, BigDecimal accuracyM) {
         return RunPath.builder()
                 .runRecord(runRecord)
-                .location(location)
+                .location(GEOMETRY_FACTORY.createPoint(new Coordinate(longitude, latitude)))
                 .sequence(sequence)
                 .recordedAt(recordedAt)
                 .altitudeM(altitudeM)
