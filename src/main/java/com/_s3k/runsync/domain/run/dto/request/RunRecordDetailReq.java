@@ -1,6 +1,7 @@
 package com._s3k.runsync.domain.run.dto.request;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.PositiveOrZero;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -13,6 +14,7 @@ import java.math.BigDecimal;
 public class RunRecordDetailReq {
 
     @PositiveOrZero
+    @Digits(integer = 3, fraction = 2)
     @Schema(description = "평균 페이스(min/km)", example = "6.43")
     private Double averagePace;
 
@@ -29,6 +31,7 @@ public class RunRecordDetailReq {
     private Integer cadence;
 
     @PositiveOrZero
+    @Digits(integer = 5, fraction = 2)
     @Schema(description = "고도 상승(m)", example = "5.0")
     private Double elevationGain;
 

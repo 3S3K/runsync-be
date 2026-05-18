@@ -15,6 +15,7 @@ import org.locationtech.jts.geom.PrecisionModel;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.Objects;
 
 @Entity
 @Table(name = "running_session")
@@ -89,7 +90,7 @@ public class RunningSession extends BaseEntity {
     }
 
     public void validateOwner(Long userId) {
-        if (!this.userId.equals(userId)) {
+        if (!Objects.equals(this.userId, userId)) {
             throw new GlobalException(RunSessionErrorCode.SESSION_NOT_OWNER);
         }
     }

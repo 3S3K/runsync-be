@@ -47,7 +47,7 @@ public class RunSessionController {
         return CommonResponse.success(null);
     }
 
-    @PostMapping("/{sessionId}/records")
+    @PatchMapping("/{sessionId}/records")
     @Operation(summary = "러닝 종료 후 세부 기록 입력 저장", description = "러닝 종료 후 세부 기록을 저장합니다. 로그인 필요")
     public CommonResponse<RunRecordDetailRes> saveRunRecordDetail(
             @AuthenticationPrincipal Long userId,
