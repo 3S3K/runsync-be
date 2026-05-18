@@ -2,6 +2,7 @@ package com._s3k.runsync.domain.run.service;
 
 import com._s3k.runsync.domain.location.service.LocationService;
 import com._s3k.runsync.domain.run.dto.request.LocationUpdateReq;
+import com._s3k.runsync.domain.run.dto.request.RunRecordDetailReq;
 import com._s3k.runsync.domain.run.dto.request.RunSessionEndReq;
 import com._s3k.runsync.domain.run.dto.request.RunSessionStartReq;
 import com._s3k.runsync.domain.run.exception.RunSessionErrorCode;
@@ -35,6 +36,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -141,8 +143,8 @@ class RunSessionServiceTest {
     void updateLocation_sessionNotOwner() {
         // given
         RunningSession session = mock(RunningSession.class);
-        given(session.getUserId()).willReturn(2L);
         given(runningSessionRepository.findById(1L)).willReturn(Optional.of(session));
+        doThrow(new GlobalException(RunSessionErrorCode.SESSION_NOT_OWNER)).when(session).validateOwner(1L);
 
         // when & then
         assertThatThrownBy(() -> runSessionService.updateLocation(1L, 1L, new LocationUpdateReq()))
@@ -156,9 +158,8 @@ class RunSessionServiceTest {
     void updateLocation_sessionNotActive() {
         // given
         RunningSession session = mock(RunningSession.class);
-        given(session.getUserId()).willReturn(1L);
-        given(session.getStatus()).willReturn(RunningSessionStatus.COMPLETED);
         given(runningSessionRepository.findById(1L)).willReturn(Optional.of(session));
+        doThrow(new GlobalException(RunSessionErrorCode.SESSION_NOT_ACTIVE)).when(session).validateActive();
 
         // when & then
         assertThatThrownBy(() -> runSessionService.updateLocation(1L, 1L, new LocationUpdateReq()))
@@ -179,8 +180,6 @@ class RunSessionServiceTest {
 
         User user = User.createTmpUser(Provider.KAKAO, "kakaoId", "nickname", null);
         RunningSession session = mock(RunningSession.class);
-        given(session.getUserId()).willReturn(userId);
-        given(session.getStatus()).willReturn(RunningSessionStatus.ACTIVE);
         given(session.createRecord(any())).willReturn(
                 RunRecord.of(user, session, 0, LocalDateTime.now(), BigDecimal.valueOf(5.0), null, null, null, null, null)
         );
@@ -211,8 +210,6 @@ class RunSessionServiceTest {
 
         User user = User.createTmpUser(Provider.KAKAO, "kakaoId", "nickname", null);
         RunningSession session = mock(RunningSession.class);
-        given(session.getUserId()).willReturn(userId);
-        given(session.getStatus()).willReturn(RunningSessionStatus.ACTIVE);
         given(session.createRecord(any())).willReturn(
                 RunRecord.of(user, session, 0, LocalDateTime.now(), BigDecimal.valueOf(5.0), null, null, null, null, null)
         );
@@ -256,8 +253,8 @@ class RunSessionServiceTest {
         ReflectionTestUtils.setField(request, "totalDistance", 5.0);
 
         RunningSession session = mock(RunningSession.class);
-        given(session.getUserId()).willReturn(2L);
         given(runningSessionRepository.findById(1L)).willReturn(Optional.of(session));
+        doThrow(new GlobalException(RunSessionErrorCode.SESSION_NOT_OWNER)).when(session).validateOwner(1L);
 
         // when & then
         assertThatThrownBy(() -> runSessionService.endRunSession(1L, 1L, request))
@@ -277,9 +274,8 @@ class RunSessionServiceTest {
         ReflectionTestUtils.setField(request, "totalDistance", 5.0);
 
         RunningSession session = mock(RunningSession.class);
-        given(session.getUserId()).willReturn(1L);
-        given(session.getStatus()).willReturn(RunningSessionStatus.COMPLETED);
         given(runningSessionRepository.findById(1L)).willReturn(Optional.of(session));
+        doThrow(new GlobalException(RunSessionErrorCode.SESSION_NOT_ACTIVE)).when(session).validateActive();
 
         // when & then
         assertThatThrownBy(() -> runSessionService.endRunSession(1L, 1L, request))
@@ -288,5 +284,88 @@ class RunSessionServiceTest {
                         .isEqualTo(RunSessionErrorCode.SESSION_NOT_ACTIVE));
 
         verify(runRecordRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("러닝 기록 세부 입력 저장 성공")
+    void saveRunRecordDetail_success() {
+        // given
+        Long userId = 1L;
+        Long sessionId = 1L;
+        RunRecordDetailReq request = new RunRecordDetailReq();
+        ReflectionTestUtils.setField(request, "averagePace", 6.43);
+        ReflectionTestUtils.setField(request, "calories", 450);
+
+        User user = User.createTmpUser(Provider.KAKAO, "kakaoId", "nickname", null);
+        RunningSession session = mock(RunningSession.class);
+        RunRecord record = RunRecord.of(user, session, 1800, LocalDateTime.now(), BigDecimal.valueOf(5.0), null, null, null, null, null);
+
+        given(runningSessionRepository.findById(sessionId)).willReturn(Optional.of(session));
+        given(runRecordRepository.findByRunningSessionId(sessionId)).willReturn(Optional.of(record));
+
+        // when
+        runSessionService.saveRunRecordDetail(userId, sessionId, request);
+
+        // then
+        verify(session).validateOwner(userId);
+        verify(session).validateCompleted();
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 세션으로 기록 세부 입력 시 예외 발생")
+    void saveRunRecordDetail_sessionNotFound() {
+        // given
+        given(runningSessionRepository.findById(1L)).willReturn(Optional.empty());
+
+        // when & then
+        assertThatThrownBy(() -> runSessionService.saveRunRecordDetail(1L, 1L, new RunRecordDetailReq()))
+                .isInstanceOf(GlobalException.class)
+                .satisfies(e -> assertThat(((GlobalException) e).getResultCode())
+                        .isEqualTo(RunSessionErrorCode.SESSION_NOT_FOUND));
+    }
+
+    @Test
+    @DisplayName("다른 유저의 세션에 기록 세부 입력 시 예외 발생")
+    void saveRunRecordDetail_sessionNotOwner() {
+        // given
+        RunningSession session = mock(RunningSession.class);
+        given(runningSessionRepository.findById(1L)).willReturn(Optional.of(session));
+        doThrow(new GlobalException(RunSessionErrorCode.SESSION_NOT_OWNER)).when(session).validateOwner(1L);
+
+        // when & then
+        assertThatThrownBy(() -> runSessionService.saveRunRecordDetail(1L, 1L, new RunRecordDetailReq()))
+                .isInstanceOf(GlobalException.class)
+                .satisfies(e -> assertThat(((GlobalException) e).getResultCode())
+                        .isEqualTo(RunSessionErrorCode.SESSION_NOT_OWNER));
+    }
+
+    @Test
+    @DisplayName("완료되지 않은 세션에 기록 세부 입력 시 예외 발생")
+    void saveRunRecordDetail_sessionNotCompleted() {
+        // given
+        RunningSession session = mock(RunningSession.class);
+        given(runningSessionRepository.findById(1L)).willReturn(Optional.of(session));
+        doThrow(new GlobalException(RunSessionErrorCode.SESSION_NOT_COMPLETED)).when(session).validateCompleted();
+
+        // when & then
+        assertThatThrownBy(() -> runSessionService.saveRunRecordDetail(1L, 1L, new RunRecordDetailReq()))
+                .isInstanceOf(GlobalException.class)
+                .satisfies(e -> assertThat(((GlobalException) e).getResultCode())
+                        .isEqualTo(RunSessionErrorCode.SESSION_NOT_COMPLETED));
+    }
+
+    @Test
+    @DisplayName("런 레코드가 없는 세션에 기록 세부 입력 시 예외 발생")
+    void saveRunRecordDetail_runRecordNotFound() {
+        // given
+        RunningSession session = mock(RunningSession.class);
+        given(runningSessionRepository.findById(1L)).willReturn(Optional.of(session));
+        given(runRecordRepository.findByRunningSessionId(1L)).willReturn(Optional.empty());
+
+        // when & then
+        assertThatThrownBy(() -> runSessionService.saveRunRecordDetail(1L, 1L, new RunRecordDetailReq()))
+                .isInstanceOf(GlobalException.class)
+                .satisfies(e -> assertThat(((GlobalException) e).getResultCode())
+                        .isEqualTo(RunSessionErrorCode.RUN_RECORD_NOT_FOUND));
     }
 }

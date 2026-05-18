@@ -74,6 +74,15 @@ public class RunRecord extends BaseEntity {
         this.paths.addAll(runPaths);
     }
 
+    public void updateDetails(BigDecimal averagePace, Integer calories, Integer averageHeartRate,
+                              Integer cadence, BigDecimal elevationGain) {
+        if (averagePace != null) this.averagePace = averagePace;
+        if (calories != null) this.calories = calories;
+        if (averageHeartRate != null) this.averageHeartRate = averageHeartRate;
+        if (cadence != null) this.cadence = cadence;
+        if (elevationGain != null) this.elevationGain = elevationGain;
+    }
+
     public static RunRecord of(User user, RunningSession runningSession, Integer durationSeconds,
                                LocalDateTime startTime, BigDecimal distance, BigDecimal averagePace,
                                Integer calories, BigDecimal elevationGain, Integer averageHeartRate,
