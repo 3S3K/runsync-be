@@ -146,9 +146,13 @@ public class RunSessionService {
                 LocalDateTime recordedAt = LocalDateTime.ofInstant(
                         Instant.parse((String) pathData.get("recordedAt")), ZoneOffset.UTC);
                 BigDecimal speedKmh = BigDecimal.valueOf(speed * 3.6).setScale(2, RoundingMode.HALF_UP);
-                BigDecimal paceMinPerKm = speed > 0
-                        ? BigDecimal.valueOf(1000.0 / (speed * 60)).setScale(2, RoundingMode.HALF_UP)
-                        : null;
+                BigDecimal paceMinPerKm = null;
+                if (speed > 0) {
+                    double rawPace = 1000.0 / (speed * 60);
+                    if (rawPace <= 999.99) {
+                        paceMinPerKm = BigDecimal.valueOf(rawPace).setScale(2, RoundingMode.HALF_UP);
+                    }
+                }
 
                 paths.add(RunPath.of(runRecord, lat, lng, i + 1, recordedAt, speedKmh, paceMinPerKm));
             } catch (Exception e) {
