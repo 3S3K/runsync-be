@@ -1,10 +1,10 @@
 package com._s3k.runsync.domain.users.service;
 
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import com._s3k.runsync.entity.User;
-import com._s3k.runsync.entity.enums.Gender;
 import com._s3k.runsync.domain.users.repository.UserRepository;
 import com._s3k.runsync.domain.users.exception.UserErrorCode;
 import com._s3k.runsync.domain.users.dto.request.UserUpdateReq;
@@ -37,8 +37,11 @@ public class UserService {
             throw new GlobalException(UserErrorCode.NICKNAME_ALREADY_EXISTS);
         }
 
-        Gender gender = request.getGender() != null ? Gender.valueOf(request.getGender()) : null;
-        user.updateInfo(request.getNickname(), request.getProfileImage(), gender, request.getBirthDate());
+        try {
+            user.updateInfo(request.getNickname(), request.getProfileImage(), request.getGender(), request.getBirthDate());
+        } catch (DataIntegrityViolationException e) {
+            throw new GlobalException(UserErrorCode.NICKNAME_ALREADY_EXISTS);
+        }
 
         return UserUpdateRes.of(user);
     }

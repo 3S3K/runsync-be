@@ -17,7 +17,7 @@ import java.time.LocalDate;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class User extends BaseEntity {
 
-    @Column(nullable = false, length = 24)
+    @Column(nullable = false, length = 24, unique = true)
     private String nickname;
 
     @Column(name = "provider_id", nullable = false)
