@@ -92,12 +92,18 @@ public class User extends BaseEntity {
     /**
      * 사용자 정보 선택적 업데이트
      */
-    public void updateInfo(String nickname, String profileImage) {
+    public void updateInfo(String nickname, String profileImage, Gender gender, LocalDate birthDate) {
         if (nickname != null && !nickname.isBlank()) {
             this.nickname = nickname;
         }
         if (profileImage != null) {
             this.profileImage = profileImage;
+        }
+        if (gender != null) {
+            this.gender = gender;
+        }
+        if (birthDate != null) {
+            this.birthDate = birthDate;
         }
     }
 
