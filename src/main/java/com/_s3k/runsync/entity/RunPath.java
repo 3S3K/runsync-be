@@ -36,43 +36,32 @@ public class RunPath extends BaseEntity {
     @Column(name = "recorded_at", nullable = false)
     private LocalDateTime recordedAt;
 
-    @Column(name = "altitude_m", precision = 7, scale = 2)
-    private BigDecimal altitudeM;
-
     @Column(name = "speed_kmh", precision = 5, scale = 2)
     private BigDecimal speedKmh;
 
     @Column(name = "pace_min_per_km", precision = 5, scale = 2)
     private BigDecimal paceMinPerKm;
 
-    @Column(name = "accuracy_m", precision = 6, scale = 2)
-    private BigDecimal accuracyM;
-
     @Builder(access = AccessLevel.PRIVATE)
     private RunPath(RunRecord runRecord, Point location, Integer sequence, LocalDateTime recordedAt,
-                    BigDecimal altitudeM, BigDecimal speedKmh, BigDecimal paceMinPerKm, BigDecimal accuracyM) {
+                    BigDecimal speedKmh, BigDecimal paceMinPerKm) {
         this.runRecord = runRecord;
         this.location = location;
         this.sequence = sequence;
         this.recordedAt = recordedAt;
-        this.altitudeM = altitudeM;
         this.speedKmh = speedKmh;
         this.paceMinPerKm = paceMinPerKm;
-        this.accuracyM = accuracyM;
     }
 
     public static RunPath of(RunRecord runRecord, double latitude, double longitude, Integer sequence,
-                             LocalDateTime recordedAt, BigDecimal altitudeM, BigDecimal speedKmh,
-                             BigDecimal paceMinPerKm, BigDecimal accuracyM) {
+                             LocalDateTime recordedAt, BigDecimal speedKmh, BigDecimal paceMinPerKm) {
         return RunPath.builder()
                 .runRecord(runRecord)
                 .location(GEOMETRY_FACTORY.createPoint(new Coordinate(longitude, latitude)))
                 .sequence(sequence)
                 .recordedAt(recordedAt)
-                .altitudeM(altitudeM)
                 .speedKmh(speedKmh)
                 .paceMinPerKm(paceMinPerKm)
-                .accuracyM(accuracyM)
                 .build();
     }
 }

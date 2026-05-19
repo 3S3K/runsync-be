@@ -1,5 +1,6 @@
 package com._s3k.runsync.domain.run.dto.request;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.PositiveOrZero;
@@ -35,11 +36,11 @@ public class RunRecordDetailReq {
     @Schema(description = "고도 상승(m)", example = "5.0")
     private Double elevationGain;
 
-    public BigDecimal getAveragePaceAsBigDecimal() {
+    public BigDecimal toAveragePaceBigDecimal() {
         return averagePace != null ? BigDecimal.valueOf(averagePace) : null;
     }
 
-    public BigDecimal getElevationGainAsBigDecimal() {
+    public BigDecimal toElevationGainBigDecimal() {
         return elevationGain != null ? BigDecimal.valueOf(elevationGain) : null;
     }
 }
