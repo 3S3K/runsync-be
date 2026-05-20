@@ -8,4 +8,6 @@ import com._s3k.runsync.entity.User;
 
 public interface UserRepository extends JpaRepository<User, Long> {
 	Optional<User> findByProviderId(String providerId);
+
+	boolean existsByNicknameAndIdNot(String nickname, Long id);
 }
