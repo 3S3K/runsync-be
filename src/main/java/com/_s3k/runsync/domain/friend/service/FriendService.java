@@ -7,13 +7,15 @@ import com._s3k.runsync.domain.run.repository.RunningSessionRepository;
 import com._s3k.runsync.entity.RunRecord;
 import com._s3k.runsync.entity.RunningSession;
 import com._s3k.runsync.entity.User;
-import com._s3k.runsync.entity.enums.FriendStatus;
+import com._s3k.runsync.entity.enums.ActivityStatus;
 import com._s3k.runsync.entity.enums.RunningSessionStatus;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -52,16 +54,23 @@ public class FriendService {
                         (a, b) -> a.getId().compareTo(b.getId()) > 0 ? a : b
                 ));
 
+        record FriendInfo(User friend, ActivityStatus status, LocalDateTime lastActiveAt) {}
+
         return friends.stream()
                 .map(friend -> {
                     RunningSession activeSession = activeSessionMap.get(friend.getId());
                     if (activeSession != null) {
-                        return FriendListRes.of(friend, FriendStatus.RUNNING, null);
+                        return new FriendInfo(friend, ActivityStatus.RUNNING, null);
                     }
                     RunRecord lastRecord = lastRecordMap.get(friend.getId());
-                    return FriendListRes.of(friend, FriendStatus.OFFLINE,
+                    return new FriendInfo(friend, ActivityStatus.OFFLINE,
                             lastRecord != null ? lastRecord.getLastActiveAt() : null);
                 })
+                .sorted(Comparator
+                        .comparing(FriendInfo::status)
+                        .thenComparing(FriendInfo::lastActiveAt, Comparator.nullsLast(Comparator.reverseOrder()))
+                        .thenComparing(info -> info.friend().getId()))
+                .map(info -> FriendListRes.of(info.friend(), info.status(), info.lastActiveAt()))
                 .toList();
     }
 }

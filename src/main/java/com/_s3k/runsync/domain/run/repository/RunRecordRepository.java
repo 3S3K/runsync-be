@@ -17,8 +17,8 @@ public interface RunRecordRepository extends JpaRepository<RunRecord, Long> {
 
     @Query("""
             SELECT r FROM RunRecord r
-            WHERE r.userId IN :userIds
-            AND r.startTime = (SELECT MAX(r2.startTime) FROM RunRecord r2 WHERE r2.userId = r.userId)
+            WHERE r.user.id IN :userIds
+            AND r.startTime = (SELECT MAX(r2.startTime) FROM RunRecord r2 WHERE r2.user.id = r.user.id)
             """)
     List<RunRecord> findLatestByUserIds(@Param("userIds") List<Long> userIds);
 }

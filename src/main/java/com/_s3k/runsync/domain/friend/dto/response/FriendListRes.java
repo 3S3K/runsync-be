@@ -1,7 +1,7 @@
 package com._s3k.runsync.domain.friend.dto.response;
 
 import com._s3k.runsync.entity.User;
-import com._s3k.runsync.entity.enums.FriendStatus;
+import com._s3k.runsync.entity.enums.ActivityStatus;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Getter;
 
@@ -26,7 +26,7 @@ public class FriendListRes {
     @Schema(description = "마지막 활동 시간. OFFLINE 상태에서는 마지막 러닝 종료 시각, RUNNING 상태에서는 null", example = "2026-04-10T15:00:00")
     private LocalDateTime lastActiveAt;
 
-    private FriendListRes(User friend, FriendStatus status, LocalDateTime lastActiveAt) {
+    private FriendListRes(User friend, ActivityStatus status, LocalDateTime lastActiveAt) {
         this.friendUserId = friend.getId();
         this.nickname = friend.getNickname();
         this.profileImage = friend.getProfileImage();
@@ -34,7 +34,7 @@ public class FriendListRes {
         this.lastActiveAt = lastActiveAt;
     }
 
-    public static FriendListRes of(User friend, FriendStatus status, LocalDateTime lastActiveAt) {
+    public static FriendListRes of(User friend, ActivityStatus status, LocalDateTime lastActiveAt) {
         return new FriendListRes(friend, status, lastActiveAt);
     }
 }

@@ -1,8 +1,8 @@
 package com._s3k.runsync.domain.location.handler;
 
-import com._s3k.runsync.domain.location.dto.response.FriendStatusRes;
+import com._s3k.runsync.domain.location.dto.response.ActivityStatusRes;
 import com._s3k.runsync.domain.location.service.LocationService;
-import com._s3k.runsync.entity.enums.FriendStatus;
+import com._s3k.runsync.entity.enums.ActivityStatus;
 import com._s3k.runsync.global.websocket.dto.WebSocketMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -31,7 +31,7 @@ public class WebSocketEventListener {
         if (principal == null) return;
 
         Long userId = Long.parseLong(principal.getName());
-        notifyFriends(userId, FriendStatus.RUNNING);
+        notifyFriends(userId, ActivityStatus.RUNNING);
     }
 
     @EventListener
@@ -42,10 +42,10 @@ public class WebSocketEventListener {
 
         Long userId = Long.parseLong(principal.getName());
         locationService.removeLocation(userId);
-        notifyFriends(userId, FriendStatus.OFFLINE);
+        notifyFriends(userId, ActivityStatus.OFFLINE);
     }
 
-    private void notifyFriends(Long userId, FriendStatus status) {
+    private void notifyFriends(Long userId, ActivityStatus status) {
         Set<String> friendIds;
         try {
             friendIds = locationService.getFriendIds(userId);
@@ -56,7 +56,7 @@ public class WebSocketEventListener {
         }
         if (friendIds == null || friendIds.isEmpty()) return;
 
-        FriendStatusRes statusData = FriendStatusRes.of(userId, status);
+        ActivityStatusRes statusData = ActivityStatusRes.of(userId, status);
 
         for (String friendId : friendIds) {
             messagingTemplate.convertAndSendToUser(
