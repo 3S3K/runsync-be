@@ -1,6 +1,6 @@
 package com._s3k.runsync.entity.enums;
 
-public enum FriendStatus {
+public enum ActivityStatus {
     RUNNING,
     OFFLINE
 }

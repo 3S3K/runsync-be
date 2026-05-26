@@ -78,6 +78,10 @@ public class RunRecord extends BaseEntity {
         this.paths = new ArrayList<>();
     }
 
+    public LocalDateTime getLastActiveAt() {
+        return this.startTime.plusSeconds(this.durationSeconds);
+    }
+
     public void validateOwner(Long userId) {
         if (!Objects.equals(this.userId, userId)) {
             throw new GlobalException(RunRecordErrorCode.RECORD_NOT_OWNER);

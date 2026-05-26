@@ -29,6 +29,22 @@ class RunRecordTest {
     }
 
     @Test
+    @DisplayName("getLastActiveAt - startTime + durationSeconds를 반환한다")
+    void getLastActiveAt() {
+        // given
+        User user = User.createTmpUser(Provider.KAKAO, "kakaoId", "nickname", null);
+        LocalDateTime startTime = LocalDateTime.of(2026, 5, 25, 10, 0, 0);
+        RunRecord record = RunRecord.of(user, null, 1800, startTime,
+                BigDecimal.valueOf(5.0), null, null, null, null, null);
+
+        // when
+        LocalDateTime lastActiveAt = record.getLastActiveAt();
+
+        // then
+        assertThat(lastActiveAt).isEqualTo(startTime.plusSeconds(1800));
+    }
+
+    @Test
     @DisplayName("validateOwner - 다른 유저면 RECORD_NOT_OWNER 예외 발생")
     void validateOwner_notOwner() {
         // given
