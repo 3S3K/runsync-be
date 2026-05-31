@@ -4,6 +4,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import jakarta.validation.Valid;
@@ -14,6 +15,7 @@ import lombok.RequiredArgsConstructor;
 import com._s3k.runsync.domain.users.service.UserService;
 import com._s3k.runsync.domain.users.dto.request.UserUpdateReq;
 import com._s3k.runsync.domain.users.dto.response.UserInfoRes;
+import com._s3k.runsync.domain.users.dto.response.UserProfileRes;
 import com._s3k.runsync.domain.users.dto.response.UserUpdateRes;
 import com._s3k.runsync.global.common.dto.CommonResponse;
 
@@ -37,6 +39,19 @@ public class UserController {
     ) {
         UserInfoRes response = userService.getMyInfo(userId);
         return CommonResponse.success(response);
+    }
+
+    /**
+     * 특정 사용자 조회
+     * @param targetUserId 조회할 사용자 ID
+     */
+    @Operation(summary = "특정 사용자 조회", description = "특정 사용자 프로필 조회: 로그인 필요")
+    @GetMapping("/{userId}")
+    public CommonResponse<UserProfileRes> getUserById(
+            @Parameter(description = "조회할 사용자 ID", required = true)
+            @PathVariable("userId") Long targetUserId
+    ) {
+        return CommonResponse.success(userService.getUserById(targetUserId));
     }
 
     /**
