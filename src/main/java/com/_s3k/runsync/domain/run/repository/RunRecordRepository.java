@@ -20,4 +20,14 @@ public interface RunRecordRepository extends JpaRepository<RunRecord, Long> {
     List<RunRecord> findByUserIdOrderByIdDesc(Long userId, Pageable pageable);
 
     List<RunRecord> findByUserIdAndIdLessThanOrderByIdDesc(Long userId, Long cursor, Pageable pageable);
+
+    @Query("SELECT r FROM RunRecord r LEFT JOIN FETCH r.paths WHERE r.id = :recordId")
+    Optional<RunRecord> findByIdWithPaths(@Param("recordId") Long recordId);
+
+    @Query("""
+            SELECT r FROM RunRecord r
+            WHERE r.user.id IN :userIds
+            AND r.startTime = (SELECT MAX(r2.startTime) FROM RunRecord r2 WHERE r2.user.id = r.user.id)
+            """)
+    List<RunRecord> findLatestByUserIds(@Param("userIds") List<Long> userIds);
 }

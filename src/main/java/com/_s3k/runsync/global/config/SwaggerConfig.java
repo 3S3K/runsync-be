@@ -12,6 +12,7 @@ import org.springframework.context.annotation.Configuration;
 
 @OpenAPIDefinition(
     servers = {
+        @Server(url = "https://api.runsyncs.com", description = "Release server URL"),
         @Server(url = "http://localhost:8080", description = "Local Host URL")
     }
 )
