@@ -42,7 +42,8 @@ public class SecurityConfig {
 				.requestMatchers("/health").permitAll()
 				.requestMatchers("/ws/**").permitAll()
 				.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-				.anyRequest().authenticated()
+				.requestMatchers(HttpMethod.PATCH, "/api/users/me").hasAnyRole("TMP_USER", "USER", "ADMIN")
+				.anyRequest().hasAnyRole("USER", "ADMIN")
 			)
 			.addFilterBefore(new JwtAuthenticationFilter(jwtValidator, userRepository), UsernamePasswordAuthenticationFilter.class)
 			.build();

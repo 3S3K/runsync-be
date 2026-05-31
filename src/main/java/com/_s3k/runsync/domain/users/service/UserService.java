@@ -11,6 +11,7 @@ import com._s3k.runsync.domain.run.repository.MonthlyStatsProjection;
 import com._s3k.runsync.domain.run.repository.RunRecordRepository;
 import com._s3k.runsync.domain.users.repository.UserRepository;
 import com._s3k.runsync.domain.users.exception.UserErrorCode;
+import com._s3k.runsync.entity.enums.Role;
 import com._s3k.runsync.domain.users.dto.request.UserUpdateReq;
 import com._s3k.runsync.domain.users.dto.response.RecordRes;
 import com._s3k.runsync.domain.users.dto.response.UserInfoRes;
@@ -55,6 +56,10 @@ public class UserService {
             user.updateInfo(request.getNickname(), request.getProfileImage(), request.getGender(), request.getBirthDate());
         } catch (DataIntegrityViolationException e) {
             throw new GlobalException(UserErrorCode.NICKNAME_ALREADY_EXISTS);
+        }
+
+        if (user.getRole() == Role.TMP_USER && request.getNickname() != null && !request.getNickname().isBlank()) {
+            user.upgradeToUser();
         }
 
         return UserUpdateRes.of(user);

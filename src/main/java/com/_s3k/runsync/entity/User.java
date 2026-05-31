@@ -89,6 +89,10 @@ public class User extends BaseEntity {
 
     public void reactivate() { this.isDeleted = false; }
 
+    public void upgradeToUser() {
+        this.role = Role.USER;
+    }
+
     /**
      * 사용자 정보 선택적 업데이트
      */
