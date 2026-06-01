@@ -5,7 +5,6 @@ import com._s3k.runsync.domain.location.service.LocationService;
 import com._s3k.runsync.entity.enums.ActivityStatus;
 import com._s3k.runsync.global.websocket.dto.WebSocketMessage;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
@@ -14,9 +13,7 @@ import org.springframework.web.socket.messaging.SessionConnectedEvent;
 import org.springframework.web.socket.messaging.SessionDisconnectEvent;
 
 import java.security.Principal;
-import java.util.Set;
 
-@Slf4j
 @Component
 @RequiredArgsConstructor
 public class WebSocketEventListener {
@@ -31,7 +28,10 @@ public class WebSocketEventListener {
         if (principal == null) return;
 
         Long userId = Long.parseLong(principal.getName());
-        notifyFriends(userId, ActivityStatus.RUNNING);
+        messagingTemplate.convertAndSend(
+                "/topic/status/" + userId,
+                WebSocketMessage.of("FRIEND_STATUS_CHANGE", ActivityStatusRes.of(userId, ActivityStatus.RUNNING))
+        );
     }
 
     @EventListener
@@ -42,28 +42,9 @@ public class WebSocketEventListener {
 
         Long userId = Long.parseLong(principal.getName());
         locationService.removeLocation(userId);
-        notifyFriends(userId, ActivityStatus.OFFLINE);
-    }
-
-    private void notifyFriends(Long userId, ActivityStatus status) {
-        Set<String> friendIds;
-        try {
-            friendIds = locationService.getFriendIds(userId);
-        } catch (Exception e) {
-            // 친구 목록 기능 미구현 상태에서 예외 발생 시 연결이 끊기는 것을 방지 (임시)
-            log.warn("친구 목록 조회 실패 userId={}: {}", userId, e.getMessage());
-            return;
-        }
-        if (friendIds == null || friendIds.isEmpty()) return;
-
-        ActivityStatusRes statusData = ActivityStatusRes.of(userId, status);
-
-        for (String friendId : friendIds) {
-            messagingTemplate.convertAndSendToUser(
-                    friendId,
-                    "/queue/status",
-                    WebSocketMessage.of("FRIEND_STATUS_CHANGE", statusData)
-            );
-        }
+        messagingTemplate.convertAndSend(
+                "/topic/status/" + userId,
+                WebSocketMessage.of("FRIEND_STATUS_CHANGE", ActivityStatusRes.of(userId, ActivityStatus.OFFLINE))
+        );
     }
 }
