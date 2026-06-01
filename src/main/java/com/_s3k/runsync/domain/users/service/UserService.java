@@ -31,6 +31,7 @@ public class UserService {
     @Transactional(readOnly = true)
     public UserProfileRes getUserById(Long targetUserId) {
         User user = userRepository.findById(targetUserId)
+                .filter(u -> !Boolean.TRUE.equals(u.getIsDeleted()))
                 .orElseThrow(() -> new GlobalException(UserErrorCode.USER_NOT_FOUND));
 
         return UserProfileRes.fromUser(user);
