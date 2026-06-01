@@ -1,5 +1,6 @@
 package com._s3k.runsync.domain.location.service;
 
+import com._s3k.runsync.domain.friend.repository.FriendshipRepository;
 import com._s3k.runsync.domain.location.dto.request.LocationUpdateReq;
 import com._s3k.runsync.domain.location.exception.LocationErrorCode;
 import com._s3k.runsync.domain.location.repository.LocationRepository;
@@ -16,6 +17,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
@@ -27,6 +29,9 @@ class LocationServiceTest {
 
     @Mock
     private LocationRepository locationRepository;
+
+    @Mock
+    private FriendshipRepository friendshipRepository;
 
     private LocationUpdateReq createReq(Long sessionId, Double latitude, Double longitude, Double speed) {
         LocationUpdateReq req = new LocationUpdateReq();
@@ -75,6 +80,32 @@ class LocationServiceTest {
                         .isEqualTo(LocationErrorCode.INVALID_LOCATION_DATA));
 
         verify(locationRepository, never()).saveGeoLocation(anyLong(), anyDouble(), anyDouble());
+    }
+
+    @Test
+    @DisplayName("친구이면 구독 허용")
+    void canSubscribeFriendTopic_friendExists_returnsTrue() {
+        // given
+        given(friendshipRepository.existsByUser_IdAndFriend_Id(1L, 2L)).willReturn(true);
+
+        // when
+        boolean result = locationService.canSubscribeFriendTopic(1L, 2L);
+
+        // then
+        assertThat(result).isTrue();
+    }
+
+    @Test
+    @DisplayName("친구가 아니면 구독 거부")
+    void canSubscribeFriendTopic_friendNotExists_returnsFalse() {
+        // given
+        given(friendshipRepository.existsByUser_IdAndFriend_Id(1L, 2L)).willReturn(false);
+
+        // when
+        boolean result = locationService.canSubscribeFriendTopic(1L, 2L);
+
+        // then
+        assertThat(result).isFalse();
     }
 
     @Test

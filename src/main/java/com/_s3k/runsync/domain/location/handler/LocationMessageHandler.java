@@ -14,7 +14,6 @@ import org.springframework.messaging.simp.annotation.SendToUser;
 import org.springframework.stereotype.Controller;
 
 import java.security.Principal;
-import java.util.Set;
 
 @Controller
 @RequiredArgsConstructor
@@ -40,18 +39,10 @@ public class LocationMessageHandler {
             );
         }
 
-        Set<String> friendIds = locationService.getFriendIds(userId);
-        if (friendIds.isEmpty()) return;
-
-        FriendLocationRes response = FriendLocationRes.of(userId, data.getLatitude(), data.getLongitude());
-
-        for (String friendId : friendIds) {
-            messagingTemplate.convertAndSendToUser(
-                    friendId,
-                    "/queue/location",
-                    WebSocketMessage.of("FRIEND_LOCATION_UPDATE", response)
-            );
-        }
+        messagingTemplate.convertAndSend(
+                "/topic/location/" + userId,
+                WebSocketMessage.of("FRIEND_LOCATION_UPDATE", FriendLocationRes.of(userId, data.getLatitude(), data.getLongitude()))
+        );
     }
 
     @MessageMapping("/ping")
