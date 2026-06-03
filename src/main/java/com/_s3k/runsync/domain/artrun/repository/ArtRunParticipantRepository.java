@@ -2,6 +2,7 @@ package com._s3k.runsync.domain.artrun.repository;
 
 import com._s3k.runsync.entity.ArtRunParticipant;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -16,7 +17,9 @@ public interface ArtRunParticipantRepository extends JpaRepository<ArtRunPartici
 
     Optional<ArtRunParticipant> findByArtRunSession_IdAndUser_Id(Long artRunSessionId, Long userId);
 
-    void deleteByArtRunSession_Id(Long artRunSessionId);
+    @Modifying
+    @Query("DELETE FROM ArtRunParticipant p WHERE p.artRunSession.id = :artRunSessionId")
+    void deleteByArtRunSession_Id(@Param("artRunSessionId") Long artRunSessionId);
 
     @Query("SELECT p.artRunSession.id AS sessionId, COUNT(p) AS participantCount " +
             "FROM ArtRunParticipant p WHERE p.artRunSession.id IN :sessionIds GROUP BY p.artRunSession.id")
