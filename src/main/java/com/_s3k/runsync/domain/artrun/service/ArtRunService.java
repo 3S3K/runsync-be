@@ -1,12 +1,14 @@
 package com._s3k.runsync.domain.artrun.service;
 
 import com._s3k.runsync.domain.artrun.dto.request.ArtRunCreateReq;
+import com._s3k.runsync.domain.artrun.dto.request.ArtRunStatusUpdateReq;
 import com._s3k.runsync.domain.artrun.dto.request.CoordinateReq;
 import com._s3k.runsync.domain.artrun.dto.request.MeetingPlaceReq;
 import com._s3k.runsync.domain.artrun.dto.response.ArtRunCreateRes;
 import com._s3k.runsync.domain.artrun.dto.response.ArtRunDetailRes;
 import com._s3k.runsync.domain.artrun.dto.response.ArtRunRes;
 import com._s3k.runsync.domain.artrun.dto.response.ArtRunScrollRes;
+import com._s3k.runsync.domain.artrun.dto.response.ArtRunStatusRes;
 import com._s3k.runsync.domain.artrun.dto.response.ParticipantRes;
 import com._s3k.runsync.domain.artrun.exception.ArtRunErrorCode;
 import com._s3k.runsync.domain.artrun.repository.ArtRunParticipantRepository;
@@ -126,6 +128,35 @@ public class ArtRunService {
         ArtRunParticipant participant = artRunParticipantRepository.findByArtRunSession_IdAndUser_Id(sessionId, userId)
                 .orElseThrow(() -> new GlobalException(ArtRunErrorCode.NOT_PARTICIPANT));
         artRunParticipantRepository.delete(participant);
+    }
+
+    @Transactional
+    public ArtRunStatusRes updateArtRunStatus(Long userId, Long sessionId, ArtRunStatusUpdateReq request) {
+        ArtRunSession session = artRunSessionRepository.findByIdWithLock(sessionId)
+                .orElseThrow(() -> new GlobalException(ArtRunErrorCode.SESSION_NOT_FOUND));
+        session.validateHost(userId);
+
+        switch (request.getStatus()) {
+            case IN_PROGRESS -> session.start();
+            case COMPLETED -> session.complete();
+            default -> throw new GlobalException(ArtRunErrorCode.INVALID_STATUS_TRANSITION);
+        }
+
+        return ArtRunStatusRes.of(session);
+    }
+
+    @Transactional
+    public void deleteArtRun(Long userId, Long sessionId) {
+        ArtRunSession session = artRunSessionRepository.findByIdWithLock(sessionId)
+                .orElseThrow(() -> new GlobalException(ArtRunErrorCode.SESSION_NOT_FOUND));
+        session.validateHost(userId);
+
+        if (!session.isRecruiting()) {
+            throw new GlobalException(ArtRunErrorCode.NOT_RECRUITING);
+        }
+
+        artRunParticipantRepository.deleteByArtRunSession_Id(sessionId);
+        artRunSessionRepository.delete(session);
     }
 
     private Map<Long, Long> countParticipantsBySession(List<ArtRunSession> sessions) {

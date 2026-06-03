@@ -16,6 +16,8 @@ public interface ArtRunParticipantRepository extends JpaRepository<ArtRunPartici
 
     Optional<ArtRunParticipant> findByArtRunSession_IdAndUser_Id(Long artRunSessionId, Long userId);
 
+    void deleteByArtRunSession_Id(Long artRunSessionId);
+
     @Query("SELECT p.artRunSession.id AS sessionId, COUNT(p) AS participantCount " +
             "FROM ArtRunParticipant p WHERE p.artRunSession.id IN :sessionIds GROUP BY p.artRunSession.id")
     List<ParticipantCountProjection> countBySessionIds(@Param("sessionIds") List<Long> sessionIds);

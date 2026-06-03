@@ -1,6 +1,8 @@
 package com._s3k.runsync.entity;
 
+import com._s3k.runsync.domain.artrun.exception.ArtRunErrorCode;
 import com._s3k.runsync.entity.enums.ArtRunStatus;
+import com._s3k.runsync.global.exception.GlobalException;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Builder;
@@ -79,5 +81,25 @@ public class ArtRunSession extends BaseEntity {
 
     public boolean isHost(Long userId) {
         return this.host.getId().equals(userId);
+    }
+
+    public void start() {
+        if (this.status != ArtRunStatus.RECRUITING) {
+            throw new GlobalException(ArtRunErrorCode.INVALID_STATUS_TRANSITION);
+        }
+        this.status = ArtRunStatus.IN_PROGRESS;
+    }
+
+    public void complete() {
+        if (this.status != ArtRunStatus.IN_PROGRESS) {
+            throw new GlobalException(ArtRunErrorCode.INVALID_STATUS_TRANSITION);
+        }
+        this.status = ArtRunStatus.COMPLETED;
+    }
+
+    public void validateHost(Long userId) {
+        if (!isHost(userId)) {
+            throw new GlobalException(ArtRunErrorCode.NOT_HOST);
+        }
     }
 }
