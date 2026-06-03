@@ -140,7 +140,6 @@ class ArtRunServiceTest {
         // given
         ArtRunSession session = session(1L, "강아지런");
         given(artRunSessionRepository.findByIdWithHost(1L)).willReturn(Optional.of(session));
-        given(artRunParticipantRepository.countByArtRunSession_Id(1L)).willReturn(2);
         given(artRunParticipantRepository.findByArtRunSessionIdWithUser(1L))
                 .willReturn(List.of(participant(10L, "현우", session)));
 
@@ -154,7 +153,7 @@ class ArtRunServiceTest {
         assertThat(result.getCoordinates().get(0).getLatitude()).isEqualTo(37.5210);
         assertThat(result.getCoordinates().get(0).getLongitude()).isEqualTo(127.1230);
         assertThat(result.getMeetingPlace().getName()).isEqualTo("올림픽공원 평화의문 앞");
-        assertThat(result.getCurrentCount()).isEqualTo(2);
+        assertThat(result.getCurrentCount()).isEqualTo(1);
         assertThat(result.getParticipants()).hasSize(1);
         assertThat(result.getParticipants().get(0).getUserId()).isEqualTo(10L);
     }

@@ -9,8 +9,6 @@ import java.util.List;
 
 public interface ArtRunParticipantRepository extends JpaRepository<ArtRunParticipant, Long> {
 
-    int countByArtRunSession_Id(Long artRunSessionId);
-
     @Query("SELECT p.artRunSession.id AS sessionId, COUNT(p) AS participantCount " +
             "FROM ArtRunParticipant p WHERE p.artRunSession.id IN :sessionIds GROUP BY p.artRunSession.id")
     List<ParticipantCountProjection> countBySessionIds(@Param("sessionIds") List<Long> sessionIds);

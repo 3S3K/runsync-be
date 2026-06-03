@@ -84,12 +84,11 @@ public class ArtRunService {
         ArtRunSession session = artRunSessionRepository.findByIdWithHost(sessionId)
                 .orElseThrow(() -> new GlobalException(ArtRunErrorCode.SESSION_NOT_FOUND));
 
-        int currentCount = artRunParticipantRepository.countByArtRunSession_Id(sessionId);
         List<ParticipantRes> participants = artRunParticipantRepository.findByArtRunSessionIdWithUser(sessionId).stream()
                 .map(ParticipantRes::of)
                 .toList();
 
-        return ArtRunDetailRes.of(session, currentCount, participants);
+        return ArtRunDetailRes.of(session, participants.size(), participants);
     }
 
     private Map<Long, Long> countParticipantsBySession(List<ArtRunSession> sessions) {
