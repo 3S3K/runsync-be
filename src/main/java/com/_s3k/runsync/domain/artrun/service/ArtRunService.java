@@ -4,13 +4,21 @@ import com._s3k.runsync.domain.artrun.dto.request.ArtRunCreateReq;
 import com._s3k.runsync.domain.artrun.dto.request.CoordinateReq;
 import com._s3k.runsync.domain.artrun.dto.request.MeetingPlaceReq;
 import com._s3k.runsync.domain.artrun.dto.response.ArtRunCreateRes;
+import com._s3k.runsync.domain.artrun.dto.response.ArtRunDetailRes;
+import com._s3k.runsync.domain.artrun.dto.response.ArtRunRes;
+import com._s3k.runsync.domain.artrun.dto.response.ArtRunScrollRes;
+import com._s3k.runsync.domain.artrun.dto.response.ParticipantRes;
+import com._s3k.runsync.domain.artrun.exception.ArtRunErrorCode;
 import com._s3k.runsync.domain.artrun.repository.ArtRunParticipantRepository;
 import com._s3k.runsync.domain.artrun.repository.ArtRunSessionRepository;
+import com._s3k.runsync.domain.artrun.repository.ParticipantCountProjection;
 import com._s3k.runsync.domain.users.exception.UserErrorCode;
 import com._s3k.runsync.domain.users.repository.UserRepository;
 import com._s3k.runsync.entity.ArtRunParticipant;
 import com._s3k.runsync.entity.ArtRunSession;
 import com._s3k.runsync.entity.User;
+import com._s3k.runsync.entity.enums.ArtRunStatus;
+import com._s3k.runsync.global.common.ScrollPaginationCollection;
 import com._s3k.runsync.global.exception.GlobalException;
 import lombok.RequiredArgsConstructor;
 import org.locationtech.jts.geom.Coordinate;
@@ -18,10 +26,13 @@ import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.PrecisionModel;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -52,6 +63,42 @@ public class ArtRunService {
         artRunParticipantRepository.save(ArtRunParticipant.of(session, host));
 
         return ArtRunCreateRes.of(session);
+    }
+
+    @Transactional(readOnly = true)
+    public ArtRunScrollRes getAllArtRuns(ArtRunStatus status, Long cursor, int size) {
+        List<ArtRunSession> sessions = cursor == null
+                ? artRunSessionRepository.findByStatusOrderByIdDesc(status, PageRequest.of(0, size + 1))
+                : artRunSessionRepository.findByStatusAndIdLessThanOrderByIdDesc(status, cursor, PageRequest.of(0, size + 1));
+
+        Map<Long, Long> countMap = countParticipantsBySession(sessions);
+        List<ArtRunRes> sessionResList = sessions.stream()
+                .map(session -> ArtRunRes.of(session, countMap.getOrDefault(session.getId(), 0L).intValue()))
+                .toList();
+
+        return ArtRunScrollRes.of(ScrollPaginationCollection.of(sessionResList, size));
+    }
+
+    @Transactional(readOnly = true)
+    public ArtRunDetailRes getArtRunById(Long sessionId) {
+        ArtRunSession session = artRunSessionRepository.findByIdWithHost(sessionId)
+                .orElseThrow(() -> new GlobalException(ArtRunErrorCode.SESSION_NOT_FOUND));
+
+        int currentCount = artRunParticipantRepository.countByArtRunSession_Id(sessionId);
+        List<ParticipantRes> participants = artRunParticipantRepository.findByArtRunSessionIdWithUser(sessionId).stream()
+                .map(ParticipantRes::of)
+                .toList();
+
+        return ArtRunDetailRes.of(session, currentCount, participants);
+    }
+
+    private Map<Long, Long> countParticipantsBySession(List<ArtRunSession> sessions) {
+        if (sessions.isEmpty()) {
+            return Map.of();
+        }
+        List<Long> sessionIds = sessions.stream().map(ArtRunSession::getId).toList();
+        return artRunParticipantRepository.countBySessionIds(sessionIds).stream()
+                .collect(Collectors.toMap(ParticipantCountProjection::getSessionId, ParticipantCountProjection::getParticipantCount));
     }
 
     private Point toPoint(double latitude, double longitude) {

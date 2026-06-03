@@ -39,7 +39,6 @@ public class ArtRunCreateReq {
 
     @NotNull
     @Size(min = 2)
-    @Valid
     @Schema(description = "도안 좌표 (그리는 순서, 2개 이상)")
-    private List<CoordinateReq> coordinates;
+    private List<@NotNull @Valid CoordinateReq> coordinates;
 }

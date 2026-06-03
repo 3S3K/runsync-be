@@ -1,12 +1,15 @@
 package com._s3k.runsync.global.exception;
 
 import com._s3k.runsync.global.common.dto.CommonResponse;
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 @Slf4j
 @RestControllerAdvice
@@ -33,7 +36,7 @@ public class GlobalExceptionHandler {
             .body(new CommonResponse<>(GlobalErrorCode.INTERNAL_SERVER_ERROR));
     }
 
-    // Validation 실패 처리
+    // @Valid @RequestBody 검증 실패 처리
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<CommonResponse<Void>> handleValidation(MethodArgumentNotValidException e) {
         String message = e.getBindingResult()
@@ -48,5 +51,31 @@ public class GlobalExceptionHandler {
         return ResponseEntity
             .status(GlobalErrorCode.VALIDATION_ERROR.getStatus())
             .body(new CommonResponse<>(GlobalErrorCode.VALIDATION_ERROR.getCode(), message));
+    }
+
+    // @Validated 파라미터(@RequestParam/@PathVariable) 검증 실패 처리
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<CommonResponse<Void>> handleConstraintViolation(ConstraintViolationException e) {
+        String message = e.getConstraintViolations()
+            .stream()
+            .findFirst()
+            .map(ConstraintViolation::getMessage)
+            .orElse(GlobalErrorCode.VALIDATION_ERROR.getMessage());
+
+        log.warn("Constraint violation: {}", message);
+
+        return ResponseEntity
+            .status(GlobalErrorCode.VALIDATION_ERROR.getStatus())
+            .body(new CommonResponse<>(GlobalErrorCode.VALIDATION_ERROR.getCode(), message));
+    }
+
+    // 요청 파라미터 타입 불일치(잘못된 enum 값 등) 처리
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<CommonResponse<Void>> handleTypeMismatch(MethodArgumentTypeMismatchException e) {
+        log.warn("Type mismatch for parameter '{}': value={}", e.getName(), e.getValue());
+
+        return ResponseEntity
+            .status(GlobalErrorCode.VALIDATION_ERROR.getStatus())
+            .body(new CommonResponse<>(GlobalErrorCode.VALIDATION_ERROR));
     }
 }

@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
@@ -56,6 +57,20 @@ class ArtRunCreateReqTest {
         Set<ConstraintViolation<ArtRunCreateReq>> violations = validator.validate(request);
 
         assertThat(violations).anyMatch(v -> v.getPropertyPath().toString().equals("coordinates"));
+    }
+
+    @Test
+    @DisplayName("좌표 리스트에 null 원소가 있으면 검증에 실패한다")
+    void coordinates_nullElement() {
+        ArtRunCreateReq request = validRequest();
+        List<CoordinateReq> coordinates = new ArrayList<>();
+        coordinates.add(coord(37.5210, 127.1230));
+        coordinates.add(null);
+        ReflectionTestUtils.setField(request, "coordinates", coordinates);
+
+        Set<ConstraintViolation<ArtRunCreateReq>> violations = validator.validate(request);
+
+        assertThat(violations).anyMatch(v -> v.getPropertyPath().toString().contains("coordinates"));
     }
 
     @Test

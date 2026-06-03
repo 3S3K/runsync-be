@@ -43,9 +43,6 @@ public class ArtRunSession extends BaseEntity {
     @Column(name = "route_path", columnDefinition = "geometry(LineString, 4326)", nullable = false)
     private LineString routePath;
 
-    @Column(name = "host_id", insertable = false, updatable = false)
-    private Long hostId;
-
     @Builder(access = AccessLevel.PRIVATE)
     private ArtRunSession(User host, String title, Integer capacity, LocalDateTime meetingTime,
                           String meetingPlaceName, Point meetingPoint, LineString routePath) {
