@@ -1,9 +1,11 @@
 package com._s3k.runsync.domain.artrun.controller;
 
 import com._s3k.runsync.domain.artrun.dto.request.ArtRunCreateReq;
+import com._s3k.runsync.domain.artrun.dto.request.ArtRunStatusUpdateReq;
 import com._s3k.runsync.domain.artrun.dto.response.ArtRunCreateRes;
 import com._s3k.runsync.domain.artrun.dto.response.ArtRunDetailRes;
 import com._s3k.runsync.domain.artrun.dto.response.ArtRunScrollRes;
+import com._s3k.runsync.domain.artrun.dto.response.ArtRunStatusRes;
 import com._s3k.runsync.domain.artrun.service.ArtRunService;
 import com._s3k.runsync.entity.enums.ArtRunStatus;
 import com._s3k.runsync.global.common.dto.CommonResponse;
@@ -16,6 +18,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -75,6 +78,26 @@ public class ArtRunController {
             @PathVariable Long sessionId
     ) {
         artRunService.leaveArtRun(userId, sessionId);
+        return CommonResponse.success(null);
+    }
+
+    @PatchMapping("/{sessionId}")
+    @Operation(summary = "협동 러닝 세션 상태 변경", description = "호스트가 세션을 시작/종료합니다. RECRUITING→IN_PROGRESS→COMPLETED 순서. 로그인 필요")
+    public CommonResponse<ArtRunStatusRes> updateArtRunStatus(
+            @AuthenticationPrincipal Long userId,
+            @PathVariable Long sessionId,
+            @Valid @RequestBody ArtRunStatusUpdateReq request
+    ) {
+        return CommonResponse.success(artRunService.updateArtRunStatus(userId, sessionId, request));
+    }
+
+    @DeleteMapping("/{sessionId}")
+    @Operation(summary = "협동 러닝 세션 삭제", description = "호스트가 모집 중인 세션을 삭제합니다. 로그인 필요")
+    public CommonResponse<Void> deleteArtRun(
+            @AuthenticationPrincipal Long userId,
+            @PathVariable Long sessionId
+    ) {
+        artRunService.deleteArtRun(userId, sessionId);
         return CommonResponse.success(null);
     }
 }

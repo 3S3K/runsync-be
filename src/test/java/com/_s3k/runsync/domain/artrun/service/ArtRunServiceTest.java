@@ -1,10 +1,12 @@
 package com._s3k.runsync.domain.artrun.service;
 
 import com._s3k.runsync.domain.artrun.dto.request.ArtRunCreateReq;
+import com._s3k.runsync.domain.artrun.dto.request.ArtRunStatusUpdateReq;
 import com._s3k.runsync.domain.artrun.dto.request.CoordinateReq;
 import com._s3k.runsync.domain.artrun.dto.request.MeetingPlaceReq;
 import com._s3k.runsync.domain.artrun.dto.response.ArtRunDetailRes;
 import com._s3k.runsync.domain.artrun.dto.response.ArtRunScrollRes;
+import com._s3k.runsync.domain.artrun.dto.response.ArtRunStatusRes;
 import com._s3k.runsync.domain.artrun.exception.ArtRunErrorCode;
 import com._s3k.runsync.domain.artrun.repository.ArtRunParticipantRepository;
 import com._s3k.runsync.domain.artrun.repository.ArtRunSessionRepository;
@@ -300,6 +302,143 @@ class ArtRunServiceTest {
                 .satisfies(e -> assertThat(((GlobalException) e).getResultCode())
                         .isEqualTo(ArtRunErrorCode.NOT_PARTICIPANT));
         verify(artRunParticipantRepository, never()).delete(any());
+    }
+
+    @Test
+    @DisplayName("세션 상태 변경 - 호스트가 모집중 세션을 시작하면 IN_PROGRESS가 된다")
+    void updateArtRunStatus_start_success() {
+        // given - RECRUITING, host id=1
+        ArtRunSession session = session(1L, "강아지런");
+        given(artRunSessionRepository.findByIdWithLock(1L)).willReturn(Optional.of(session));
+
+        // when
+        ArtRunStatusRes result = artRunService.updateArtRunStatus(1L, 1L, statusReq(ArtRunStatus.IN_PROGRESS));
+
+        // then
+        assertThat(result.getStatus()).isEqualTo(ArtRunStatus.IN_PROGRESS);
+        assertThat(session.getStatus()).isEqualTo(ArtRunStatus.IN_PROGRESS);
+    }
+
+    @Test
+    @DisplayName("세션 상태 변경 - 호스트가 진행중 세션을 종료하면 COMPLETED가 된다")
+    void updateArtRunStatus_complete_success() {
+        // given - IN_PROGRESS, host id=1
+        ArtRunSession session = session(1L, "강아지런");
+        ReflectionTestUtils.setField(session, "status", ArtRunStatus.IN_PROGRESS);
+        given(artRunSessionRepository.findByIdWithLock(1L)).willReturn(Optional.of(session));
+
+        // when
+        ArtRunStatusRes result = artRunService.updateArtRunStatus(1L, 1L, statusReq(ArtRunStatus.COMPLETED));
+
+        // then
+        assertThat(result.getStatus()).isEqualTo(ArtRunStatus.COMPLETED);
+    }
+
+    @Test
+    @DisplayName("호스트가 아닌 유저가 상태 변경 시 예외 발생")
+    void updateArtRunStatus_notHost() {
+        // given - host id=1, 요청자 99L
+        ArtRunSession session = session(1L, "강아지런");
+        given(artRunSessionRepository.findByIdWithLock(1L)).willReturn(Optional.of(session));
+
+        // when & then
+        assertThatThrownBy(() -> artRunService.updateArtRunStatus(99L, 1L, statusReq(ArtRunStatus.IN_PROGRESS)))
+                .isInstanceOf(GlobalException.class)
+                .satisfies(e -> assertThat(((GlobalException) e).getResultCode())
+                        .isEqualTo(ArtRunErrorCode.NOT_HOST));
+    }
+
+    @Test
+    @DisplayName("잘못된 상태 전이(모집중→완료) 시 예외 발생")
+    void updateArtRunStatus_invalidTransition() {
+        // given - RECRUITING 상태에서 곧바로 COMPLETED 요청
+        ArtRunSession session = session(1L, "강아지런");
+        given(artRunSessionRepository.findByIdWithLock(1L)).willReturn(Optional.of(session));
+
+        // when & then
+        assertThatThrownBy(() -> artRunService.updateArtRunStatus(1L, 1L, statusReq(ArtRunStatus.COMPLETED)))
+                .isInstanceOf(GlobalException.class)
+                .satisfies(e -> assertThat(((GlobalException) e).getResultCode())
+                        .isEqualTo(ArtRunErrorCode.INVALID_STATUS_TRANSITION));
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 세션 상태 변경 시 예외 발생")
+    void updateArtRunStatus_sessionNotFound() {
+        // given
+        given(artRunSessionRepository.findByIdWithLock(1L)).willReturn(Optional.empty());
+
+        // when & then
+        assertThatThrownBy(() -> artRunService.updateArtRunStatus(1L, 1L, statusReq(ArtRunStatus.IN_PROGRESS)))
+                .isInstanceOf(GlobalException.class)
+                .satisfies(e -> assertThat(((GlobalException) e).getResultCode())
+                        .isEqualTo(ArtRunErrorCode.SESSION_NOT_FOUND));
+    }
+
+    @Test
+    @DisplayName("세션 삭제 성공 - 호스트가 모집중 세션을 삭제하면 참가자도 함께 삭제된다")
+    void deleteArtRun_success() {
+        // given - RECRUITING, host id=1
+        ArtRunSession session = session(1L, "강아지런");
+        given(artRunSessionRepository.findByIdWithLock(1L)).willReturn(Optional.of(session));
+
+        // when
+        artRunService.deleteArtRun(1L, 1L);
+
+        // then
+        verify(artRunParticipantRepository).deleteByArtRunSession_Id(1L);
+        verify(artRunSessionRepository).delete(session);
+    }
+
+    @Test
+    @DisplayName("호스트가 아닌 유저가 세션 삭제 시 예외 발생")
+    void deleteArtRun_notHost() {
+        // given - host id=1, 요청자 99L
+        ArtRunSession session = session(1L, "강아지런");
+        given(artRunSessionRepository.findByIdWithLock(1L)).willReturn(Optional.of(session));
+
+        // when & then
+        assertThatThrownBy(() -> artRunService.deleteArtRun(99L, 1L))
+                .isInstanceOf(GlobalException.class)
+                .satisfies(e -> assertThat(((GlobalException) e).getResultCode())
+                        .isEqualTo(ArtRunErrorCode.NOT_HOST));
+        verify(artRunSessionRepository, never()).delete(any());
+    }
+
+    @Test
+    @DisplayName("모집중이 아닌 세션 삭제 시 예외 발생")
+    void deleteArtRun_notRecruiting() {
+        // given - IN_PROGRESS
+        ArtRunSession session = session(1L, "강아지런");
+        ReflectionTestUtils.setField(session, "status", ArtRunStatus.IN_PROGRESS);
+        given(artRunSessionRepository.findByIdWithLock(1L)).willReturn(Optional.of(session));
+
+        // when & then
+        assertThatThrownBy(() -> artRunService.deleteArtRun(1L, 1L))
+                .isInstanceOf(GlobalException.class)
+                .satisfies(e -> assertThat(((GlobalException) e).getResultCode())
+                        .isEqualTo(ArtRunErrorCode.NOT_RECRUITING));
+        verify(artRunParticipantRepository, never()).deleteByArtRunSession_Id(any());
+        verify(artRunSessionRepository, never()).delete(any());
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 세션 삭제 시 예외 발생")
+    void deleteArtRun_sessionNotFound() {
+        // given
+        given(artRunSessionRepository.findByIdWithLock(1L)).willReturn(Optional.empty());
+
+        // when & then
+        assertThatThrownBy(() -> artRunService.deleteArtRun(1L, 1L))
+                .isInstanceOf(GlobalException.class)
+                .satisfies(e -> assertThat(((GlobalException) e).getResultCode())
+                        .isEqualTo(ArtRunErrorCode.SESSION_NOT_FOUND));
+    }
+
+    private ArtRunStatusUpdateReq statusReq(ArtRunStatus status) {
+        ArtRunStatusUpdateReq request = new ArtRunStatusUpdateReq();
+        ReflectionTestUtils.setField(request, "status", status);
+        return request;
     }
 
     private ArtRunSession session(Long id, String title) {
