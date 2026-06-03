@@ -171,6 +171,137 @@ class ArtRunServiceTest {
                         .isEqualTo(ArtRunErrorCode.SESSION_NOT_FOUND));
     }
 
+    @Test
+    @DisplayName("세션 참가 성공 - 모집중이고 정원 여유가 있으면 참가자가 저장된다")
+    void joinArtRun_success() {
+        // given
+        ArtRunSession session = session(1L, "강아지런"); // capacity 5, RECRUITING, host id=1
+        given(artRunSessionRepository.findByIdWithLock(1L)).willReturn(Optional.of(session));
+        given(artRunParticipantRepository.existsByArtRunSession_IdAndUser_Id(1L, 10L)).willReturn(false);
+        given(artRunParticipantRepository.countByArtRunSession_Id(1L)).willReturn(2);
+        User user = User.createTmpUser(Provider.KAKAO, "kakao10", "현우", null);
+        ReflectionTestUtils.setField(user, "id", 10L);
+        given(userRepository.findById(10L)).willReturn(Optional.of(user));
+
+        // when
+        artRunService.joinArtRun(10L, 1L);
+
+        // then
+        ArgumentCaptor<ArtRunParticipant> captor = ArgumentCaptor.forClass(ArtRunParticipant.class);
+        verify(artRunParticipantRepository).save(captor.capture());
+        assertThat(captor.getValue().getUser()).isEqualTo(user);
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 세션 참가 시 예외 발생")
+    void joinArtRun_sessionNotFound() {
+        // given
+        given(artRunSessionRepository.findByIdWithLock(1L)).willReturn(Optional.empty());
+
+        // when & then
+        assertThatThrownBy(() -> artRunService.joinArtRun(10L, 1L))
+                .isInstanceOf(GlobalException.class)
+                .satisfies(e -> assertThat(((GlobalException) e).getResultCode())
+                        .isEqualTo(ArtRunErrorCode.SESSION_NOT_FOUND));
+        verify(artRunParticipantRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("모집중이 아닌 세션 참가 시 예외 발생")
+    void joinArtRun_notRecruiting() {
+        // given
+        ArtRunSession session = session(1L, "강아지런");
+        ReflectionTestUtils.setField(session, "status", ArtRunStatus.IN_PROGRESS);
+        given(artRunSessionRepository.findByIdWithLock(1L)).willReturn(Optional.of(session));
+
+        // when & then
+        assertThatThrownBy(() -> artRunService.joinArtRun(10L, 1L))
+                .isInstanceOf(GlobalException.class)
+                .satisfies(e -> assertThat(((GlobalException) e).getResultCode())
+                        .isEqualTo(ArtRunErrorCode.NOT_RECRUITING));
+        verify(artRunParticipantRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("이미 참가한 세션에 다시 참가 시 예외 발생")
+    void joinArtRun_alreadyJoined() {
+        // given
+        ArtRunSession session = session(1L, "강아지런");
+        given(artRunSessionRepository.findByIdWithLock(1L)).willReturn(Optional.of(session));
+        given(artRunParticipantRepository.existsByArtRunSession_IdAndUser_Id(1L, 10L)).willReturn(true);
+
+        // when & then
+        assertThatThrownBy(() -> artRunService.joinArtRun(10L, 1L))
+                .isInstanceOf(GlobalException.class)
+                .satisfies(e -> assertThat(((GlobalException) e).getResultCode())
+                        .isEqualTo(ArtRunErrorCode.ALREADY_JOINED));
+        verify(artRunParticipantRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("정원이 가득 찬 세션 참가 시 예외 발생")
+    void joinArtRun_full() {
+        // given - capacity 5, 이미 5명
+        ArtRunSession session = session(1L, "강아지런");
+        given(artRunSessionRepository.findByIdWithLock(1L)).willReturn(Optional.of(session));
+        given(artRunParticipantRepository.existsByArtRunSession_IdAndUser_Id(1L, 10L)).willReturn(false);
+        given(artRunParticipantRepository.countByArtRunSession_Id(1L)).willReturn(5);
+
+        // when & then
+        assertThatThrownBy(() -> artRunService.joinArtRun(10L, 1L))
+                .isInstanceOf(GlobalException.class)
+                .satisfies(e -> assertThat(((GlobalException) e).getResultCode())
+                        .isEqualTo(ArtRunErrorCode.SESSION_FULL));
+        verify(artRunParticipantRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("세션 참가 취소 성공 - 참가자가 삭제된다")
+    void leaveArtRun_success() {
+        // given - host id=1, 취소 요청자는 10L
+        ArtRunSession session = session(1L, "강아지런");
+        ArtRunParticipant participant = participant(10L, "현우", session);
+        given(artRunSessionRepository.findByIdWithHost(1L)).willReturn(Optional.of(session));
+        given(artRunParticipantRepository.findByArtRunSession_IdAndUser_Id(1L, 10L)).willReturn(Optional.of(participant));
+
+        // when
+        artRunService.leaveArtRun(10L, 1L);
+
+        // then
+        verify(artRunParticipantRepository).delete(participant);
+    }
+
+    @Test
+    @DisplayName("호스트가 참가 취소 시 예외 발생")
+    void leaveArtRun_hostCannotLeave() {
+        // given - host id=1, 취소 요청자도 1L
+        ArtRunSession session = session(1L, "강아지런");
+        given(artRunSessionRepository.findByIdWithHost(1L)).willReturn(Optional.of(session));
+
+        // when & then
+        assertThatThrownBy(() -> artRunService.leaveArtRun(1L, 1L))
+                .isInstanceOf(GlobalException.class)
+                .satisfies(e -> assertThat(((GlobalException) e).getResultCode())
+                        .isEqualTo(ArtRunErrorCode.HOST_CANNOT_LEAVE));
+        verify(artRunParticipantRepository, never()).delete(any());
+    }
+
+    @Test
+    @DisplayName("참가하지 않은 세션 취소 시 예외 발생")
+    void leaveArtRun_notParticipant() {
+        // given - host id=1, 요청자 10L은 미참가
+        ArtRunSession session = session(1L, "강아지런");
+        given(artRunSessionRepository.findByIdWithHost(1L)).willReturn(Optional.of(session));
+        given(artRunParticipantRepository.findByArtRunSession_IdAndUser_Id(1L, 10L)).willReturn(Optional.empty());
+
+        // when & then
+        assertThatThrownBy(() -> artRunService.leaveArtRun(10L, 1L))
+                .isInstanceOf(GlobalException.class)
+                .satisfies(e -> assertThat(((GlobalException) e).getResultCode())
+                        .isEqualTo(ArtRunErrorCode.NOT_PARTICIPANT));
+        verify(artRunParticipantRepository, never()).delete(any());
+    }
+
     private ArtRunSession session(Long id, String title) {
         User host = User.createTmpUser(Provider.KAKAO, "kakao" + id, "host" + id, null);
         ReflectionTestUtils.setField(host, "id", id);

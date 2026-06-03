@@ -2,8 +2,10 @@ package com._s3k.runsync.domain.artrun.repository;
 
 import com._s3k.runsync.entity.ArtRunSession;
 import com._s3k.runsync.entity.enums.ArtRunStatus;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -21,4 +23,8 @@ public interface ArtRunSessionRepository extends JpaRepository<ArtRunSession, Lo
 
     @Query("SELECT s FROM ArtRunSession s JOIN FETCH s.host WHERE s.id = :sessionId")
     Optional<ArtRunSession> findByIdWithHost(@Param("sessionId") Long sessionId);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT s FROM ArtRunSession s WHERE s.id = :sessionId")
+    Optional<ArtRunSession> findByIdWithLock(@Param("sessionId") Long sessionId);
 }

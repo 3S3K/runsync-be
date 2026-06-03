@@ -14,6 +14,7 @@ import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -55,5 +56,25 @@ public class ArtRunController {
             @PathVariable Long sessionId
     ) {
         return CommonResponse.success(artRunService.getArtRunById(sessionId));
+    }
+
+    @PostMapping("/{sessionId}/participants")
+    @Operation(summary = "협동 러닝 세션 참가", description = "협동 러닝 세션에 참가합니다(신청 즉시 입장). 모집 중인 세션만 가능. 로그인 필요")
+    public CommonResponse<Void> joinArtRun(
+            @AuthenticationPrincipal Long userId,
+            @PathVariable Long sessionId
+    ) {
+        artRunService.joinArtRun(userId, sessionId);
+        return CommonResponse.success(null);
+    }
+
+    @DeleteMapping("/{sessionId}/participants/me")
+    @Operation(summary = "협동 러닝 세션 참가 취소", description = "본인의 협동 러닝 세션 참가를 취소합니다. 호스트는 취소할 수 없습니다. 로그인 필요")
+    public CommonResponse<Void> leaveArtRun(
+            @AuthenticationPrincipal Long userId,
+            @PathVariable Long sessionId
+    ) {
+        artRunService.leaveArtRun(userId, sessionId);
+        return CommonResponse.success(null);
     }
 }
