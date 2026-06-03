@@ -91,6 +91,43 @@ public class ArtRunService {
         return ArtRunDetailRes.of(session, participants.size(), participants);
     }
 
+    @Transactional
+    public void joinArtRun(Long userId, Long sessionId) {
+        ArtRunSession session = artRunSessionRepository.findByIdWithLock(sessionId)
+                .orElseThrow(() -> new GlobalException(ArtRunErrorCode.SESSION_NOT_FOUND));
+
+        if (!session.isRecruiting()) {
+            throw new GlobalException(ArtRunErrorCode.NOT_RECRUITING);
+        }
+        if (artRunParticipantRepository.existsByArtRunSession_IdAndUser_Id(sessionId, userId)) {
+            throw new GlobalException(ArtRunErrorCode.ALREADY_JOINED);
+        }
+        if (session.isFull(artRunParticipantRepository.countByArtRunSession_Id(sessionId))) {
+            throw new GlobalException(ArtRunErrorCode.SESSION_FULL);
+        }
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new GlobalException(UserErrorCode.USER_NOT_FOUND));
+        artRunParticipantRepository.save(ArtRunParticipant.of(session, user));
+    }
+
+    @Transactional
+    public void leaveArtRun(Long userId, Long sessionId) {
+        ArtRunSession session = artRunSessionRepository.findByIdWithHost(sessionId)
+                .orElseThrow(() -> new GlobalException(ArtRunErrorCode.SESSION_NOT_FOUND));
+
+        if (!session.isRecruiting()) {
+            throw new GlobalException(ArtRunErrorCode.NOT_RECRUITING);
+        }
+        if (session.isHost(userId)) {
+            throw new GlobalException(ArtRunErrorCode.HOST_CANNOT_LEAVE);
+        }
+
+        ArtRunParticipant participant = artRunParticipantRepository.findByArtRunSession_IdAndUser_Id(sessionId, userId)
+                .orElseThrow(() -> new GlobalException(ArtRunErrorCode.NOT_PARTICIPANT));
+        artRunParticipantRepository.delete(participant);
+    }
+
     private Map<Long, Long> countParticipantsBySession(List<ArtRunSession> sessions) {
         if (sessions.isEmpty()) {
             return Map.of();

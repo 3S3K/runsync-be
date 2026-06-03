@@ -68,4 +68,16 @@ public class ArtRunSession extends BaseEntity {
                 .routePath(routePath)
                 .build();
     }
+
+    public boolean isRecruiting() {
+        return this.status == ArtRunStatus.RECRUITING;
+    }
+
+    public boolean isFull(int currentCount) {
+        return currentCount >= this.capacity;
+    }
+
+    public boolean isHost(Long userId) {
+        return this.host.getId().equals(userId);
+    }
 }
