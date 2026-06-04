@@ -12,6 +12,9 @@ public class LocationUpdateReq {
     @Schema(description = "러닝 세션 ID", example = "1")
     private Long sessionId;
 
+    @Schema(description = "협동 러닝 세션 ID (협동 러닝 위치 공유 시)", example = "100")
+    private Long artRunSessionId;
+
     @Schema(description = "위도", example = "37.5665")
     private Double latitude;
 

@@ -1,5 +1,6 @@
 package com._s3k.runsync.global.websocket.interceptor;
 
+import com._s3k.runsync.domain.artrun.service.ArtRunService;
 import com._s3k.runsync.domain.location.service.LocationService;
 import com._s3k.runsync.global.security.jwt.JwtValidator;
 import com._s3k.runsync.global.security.jwt.dto.JwtUserInfo;
@@ -31,6 +32,9 @@ class WebSocketAuthInterceptorTest {
 
     @Mock
     private LocationService locationService;
+
+    @Mock
+    private ArtRunService artRunService;
 
     @Mock
     private MessageChannel channel;
@@ -106,6 +110,45 @@ class WebSocketAuthInterceptorTest {
         assertThatThrownBy(() -> interceptor.preSend(message, channel))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("인증되지 않은 사용자입니다.");
+    }
+
+    @Test
+    @DisplayName("협동 러닝 세션 topic 정상 구독 허용 - 참가자")
+    void subscribe_validArtRunTopic_allowed() {
+        // given
+        given(artRunService.isParticipant(1L, 100L)).willReturn(true);
+        Message<?> message = buildSubscribeMessage("/topic/artrun/100", "1");
+
+        // when
+        Message<?> result = interceptor.preSend(message, channel);
+
+        // then
+        assertThat(result).isNotNull();
+    }
+
+    @Test
+    @DisplayName("참가자가 아닌 사용자의 협동 러닝 세션 topic 구독 거부")
+    void subscribe_notParticipant_throwsException() {
+        // given
+        given(artRunService.isParticipant(1L, 100L)).willReturn(false);
+        Message<?> message = buildSubscribeMessage("/topic/artrun/100", "1");
+
+        // when & then
+        assertThatThrownBy(() -> interceptor.preSend(message, channel))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("세션 참가자가 아니면 구독할 수 없습니다.");
+    }
+
+    @Test
+    @DisplayName("malformed 협동 러닝 topic 거부")
+    void subscribe_malformedArtRunTopic_throwsException() {
+        // given
+        Message<?> message = buildSubscribeMessage("/topic/artrun/abc", "1");
+
+        // when & then
+        assertThatThrownBy(() -> interceptor.preSend(message, channel))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("잘못된 구독 경로입니다.");
     }
 
     @Test
