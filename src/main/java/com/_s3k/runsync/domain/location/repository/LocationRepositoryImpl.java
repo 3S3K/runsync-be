@@ -7,8 +7,6 @@ import org.springframework.data.geo.Point;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Repository;
 
-import java.util.Set;
-
 @Repository
 @RequiredArgsConstructor
 public class LocationRepositoryImpl implements LocationRepository {
@@ -22,11 +20,6 @@ public class LocationRepositoryImpl implements LocationRepository {
         } catch (Exception e) {
             throw new GlobalException(LocationErrorCode.LOCATION_SAVE_FAILED);
         }
-    }
-
-    @Override
-    public Set<String> findFriendIds(Long userId) {
-        return redisTemplate.opsForSet().members("user:" + userId + ":friends");
     }
 
     @Override

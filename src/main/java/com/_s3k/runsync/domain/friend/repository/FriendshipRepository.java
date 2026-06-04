@@ -12,4 +12,6 @@ public interface FriendshipRepository extends JpaRepository<Friendship, Long> {
 
     @Query("SELECT f.friend FROM Friendship f WHERE f.user.id = :userId AND f.friend.isDeleted = false")
     List<User> findFriendsByUserId(@Param("userId") Long userId);
+
+    boolean existsByUser_IdAndFriend_Id(Long userId, Long friendId);
 }

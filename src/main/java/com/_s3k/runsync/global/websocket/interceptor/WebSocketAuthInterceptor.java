@@ -1,5 +1,7 @@
 package com._s3k.runsync.global.websocket.interceptor;
 
+import com._s3k.runsync.domain.artrun.service.ArtRunService;
+import com._s3k.runsync.domain.location.service.LocationService;
 import com._s3k.runsync.global.security.jwt.JwtValidator;
 import com._s3k.runsync.global.security.jwt.dto.JwtUserInfo;
 import lombok.RequiredArgsConstructor;
@@ -15,13 +17,19 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class WebSocketAuthInterceptor implements ChannelInterceptor {
 
+    private static final String FRIEND_TOPIC_PATTERN = "^/topic/(status|location)/\\d+$";
+    private static final String ARTRUN_TOPIC_PATTERN = "^/topic/artrun/\\d+$";
+
     private final JwtValidator jwtValidator;
+    private final LocationService locationService;
+    private final ArtRunService artRunService;
 
     @Override
     public Message<?> preSend(Message<?> message, MessageChannel channel) {
         StompHeaderAccessor accessor = MessageHeaderAccessor.getAccessor(message, StompHeaderAccessor.class);
+        if (accessor == null) return message;
 
-        if (accessor != null && StompCommand.CONNECT.equals(accessor.getCommand())) {
+        if (StompCommand.CONNECT.equals(accessor.getCommand())) {
             String authHeader = accessor.getFirstNativeHeader("Authorization");
 
             if (authHeader == null || !authHeader.startsWith("Bearer ")) {
@@ -36,6 +44,54 @@ public class WebSocketAuthInterceptor implements ChannelInterceptor {
 
             JwtUserInfo userInfo = jwtValidator.getUserIdAndRole(token);
             accessor.setUser(() -> String.valueOf(userInfo.getUserId()));
+        }
+
+        if (StompCommand.SUBSCRIBE.equals(accessor.getCommand())) {
+            String destination = accessor.getDestination();
+            if (destination == null) return message;
+
+            boolean isProtectedTopic = destination.equals("/topic/status") || destination.startsWith("/topic/status/")
+                    || destination.equals("/topic/location") || destination.startsWith("/topic/location/");
+            boolean isValidProtectedTopic = destination.matches(FRIEND_TOPIC_PATTERN);
+
+            if (isProtectedTopic && !isValidProtectedTopic) {
+                throw new IllegalArgumentException("잘못된 구독 경로입니다.");
+            }
+
+            if (isValidProtectedTopic) {
+                if (accessor.getUser() == null) {
+                    throw new IllegalArgumentException("인증되지 않은 사용자입니다.");
+                }
+
+                String targetUserId = destination.substring(destination.lastIndexOf('/') + 1);
+                String subscriberUserId = accessor.getUser().getName();
+                if (subscriberUserId.equals(targetUserId)) {
+                    throw new IllegalArgumentException("자기 자신을 구독할 수 없습니다.");
+                }
+
+                if (!locationService.canSubscribeFriendTopic(Long.parseLong(subscriberUserId), Long.parseLong(targetUserId))) {
+                    throw new IllegalArgumentException("친구가 아닌 사용자의 상태/위치를 구독할 수 없습니다.");
+                }
+            }
+
+            boolean isArtRunTopic = destination.equals("/topic/artrun") || destination.startsWith("/topic/artrun/");
+            boolean isValidArtRunTopic = destination.matches(ARTRUN_TOPIC_PATTERN);
+
+            if (isArtRunTopic && !isValidArtRunTopic) {
+                throw new IllegalArgumentException("잘못된 구독 경로입니다.");
+            }
+
+            if (isValidArtRunTopic) {
+                if (accessor.getUser() == null) {
+                    throw new IllegalArgumentException("인증되지 않은 사용자입니다.");
+                }
+
+                String sessionId = destination.substring(destination.lastIndexOf('/') + 1);
+                String subscriberUserId = accessor.getUser().getName();
+                if (!artRunService.isParticipant(Long.parseLong(subscriberUserId), Long.parseLong(sessionId))) {
+                    throw new IllegalArgumentException("세션 참가자가 아니면 구독할 수 없습니다.");
+                }
+            }
         }
 
         return message;

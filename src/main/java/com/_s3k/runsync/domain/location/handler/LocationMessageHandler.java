@@ -1,5 +1,7 @@
 package com._s3k.runsync.domain.location.handler;
 
+import com._s3k.runsync.domain.artrun.dto.response.ArtRunLocationRes;
+import com._s3k.runsync.domain.artrun.service.ArtRunService;
 import com._s3k.runsync.domain.run.service.RunSessionService;
 import com._s3k.runsync.global.exception.GlobalException;
 import com._s3k.runsync.global.websocket.dto.WebSocketMessage;
@@ -14,7 +16,6 @@ import org.springframework.messaging.simp.annotation.SendToUser;
 import org.springframework.stereotype.Controller;
 
 import java.security.Principal;
-import java.util.Set;
 
 @Controller
 @RequiredArgsConstructor
@@ -23,6 +24,7 @@ public class LocationMessageHandler {
     private final SimpMessagingTemplate messagingTemplate;
     private final LocationService locationService;
     private final RunSessionService runSessionService;
+    private final ArtRunService artRunService;
 
     @MessageMapping("/location")
     public void handleLocation(WebSocketMessage<LocationUpdateReq> message, Principal principal) {
@@ -40,16 +42,15 @@ public class LocationMessageHandler {
             );
         }
 
-        Set<String> friendIds = locationService.getFriendIds(userId);
-        if (friendIds.isEmpty()) return;
+        messagingTemplate.convertAndSend(
+                "/topic/location/" + userId,
+                WebSocketMessage.of("FRIEND_LOCATION_UPDATE", FriendLocationRes.of(userId, data.getLatitude(), data.getLongitude()))
+        );
 
-        FriendLocationRes response = FriendLocationRes.of(userId, data.getLatitude(), data.getLongitude());
-
-        for (String friendId : friendIds) {
-            messagingTemplate.convertAndSendToUser(
-                    friendId,
-                    "/queue/location",
-                    WebSocketMessage.of("FRIEND_LOCATION_UPDATE", response)
+        if (data.getArtRunSessionId() != null && artRunService.isParticipant(userId, data.getArtRunSessionId())) {
+            messagingTemplate.convertAndSend(
+                    "/topic/artrun/" + data.getArtRunSessionId(),
+                    WebSocketMessage.of("ARTRUN_LOCATION_UPDATE", ArtRunLocationRes.of(userId, data.getLatitude(), data.getLongitude()))
             );
         }
     }

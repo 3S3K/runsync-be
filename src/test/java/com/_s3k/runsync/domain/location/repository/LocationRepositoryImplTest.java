@@ -10,10 +10,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.geo.Point;
 import org.springframework.data.redis.core.GeoOperations;
-import org.springframework.data.redis.core.SetOperations;
 import org.springframework.data.redis.core.StringRedisTemplate;
-
-import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -60,21 +57,6 @@ class LocationRepositoryImplTest {
                 .isInstanceOf(GlobalException.class)
                 .satisfies(e -> assertThat(((GlobalException) e).getResultCode())
                         .isEqualTo(LocationErrorCode.LOCATION_SAVE_FAILED));
-    }
-
-    @Test
-    @DisplayName("친구 ID 목록 조회 성공")
-    void findFriendIds_success() {
-        // given
-        SetOperations<String, String> setOps = mock(SetOperations.class);
-        given(redisTemplate.opsForSet()).willReturn(setOps);
-        given(setOps.members("user:1:friends")).willReturn(Set.of("2", "3"));
-
-        // when
-        Set<String> result = locationRepository.findFriendIds(1L);
-
-        // then
-        assertThat(result).containsExactlyInAnyOrder("2", "3");
     }
 
     @Test
