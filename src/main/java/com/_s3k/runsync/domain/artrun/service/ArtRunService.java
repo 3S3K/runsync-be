@@ -10,6 +10,8 @@ import com._s3k.runsync.domain.artrun.dto.response.ArtRunRes;
 import com._s3k.runsync.domain.artrun.dto.response.ArtRunScrollRes;
 import com._s3k.runsync.domain.artrun.dto.response.ArtRunStatusRes;
 import com._s3k.runsync.domain.artrun.dto.response.ParticipantRes;
+import com._s3k.runsync.domain.artrun.event.ArtRunParticipantLeftEvent;
+import com._s3k.runsync.domain.artrun.event.ArtRunSessionClosedEvent;
 import com._s3k.runsync.domain.artrun.exception.ArtRunErrorCode;
 import com._s3k.runsync.domain.artrun.repository.ArtRunParticipantRepository;
 import com._s3k.runsync.domain.artrun.repository.ArtRunSessionRepository;
@@ -28,6 +30,7 @@ import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.PrecisionModel;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -45,6 +48,7 @@ public class ArtRunService {
     private final UserRepository userRepository;
     private final ArtRunSessionRepository artRunSessionRepository;
     private final ArtRunParticipantRepository artRunParticipantRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Transactional
     public ArtRunCreateRes createArtRun(Long userId, ArtRunCreateReq request) {
@@ -115,7 +119,7 @@ public class ArtRunService {
 
     @Transactional
     public void leaveArtRun(Long userId, Long sessionId) {
-        ArtRunSession session = artRunSessionRepository.findByIdWithHost(sessionId)
+        ArtRunSession session = artRunSessionRepository.findByIdWithLock(sessionId)
                 .orElseThrow(() -> new GlobalException(ArtRunErrorCode.SESSION_NOT_FOUND));
 
         if (!session.isRecruiting()) {
@@ -128,6 +132,8 @@ public class ArtRunService {
         ArtRunParticipant participant = artRunParticipantRepository.findByArtRunSession_IdAndUser_Id(sessionId, userId)
                 .orElseThrow(() -> new GlobalException(ArtRunErrorCode.NOT_PARTICIPANT));
         artRunParticipantRepository.delete(participant);
+
+        eventPublisher.publishEvent(new ArtRunParticipantLeftEvent(sessionId, userId));
     }
 
     @Transactional
@@ -157,11 +163,8 @@ public class ArtRunService {
 
         artRunParticipantRepository.deleteByArtRunSession_Id(sessionId);
         artRunSessionRepository.delete(session);
-    }
 
-    @Transactional(readOnly = true)
-    public boolean isParticipant(Long userId, Long sessionId) {
-        return artRunParticipantRepository.existsByArtRunSession_IdAndUser_Id(sessionId, userId);
+        eventPublisher.publishEvent(new ArtRunSessionClosedEvent(sessionId));
     }
 
     private Map<Long, Long> countParticipantsBySession(List<ArtRunSession> sessions) {

@@ -1,6 +1,6 @@
 package com._s3k.runsync.global.websocket.interceptor;
 
-import com._s3k.runsync.domain.artrun.service.ArtRunService;
+import com._s3k.runsync.domain.artrun.repository.ArtRunParticipantRepository;
 import com._s3k.runsync.domain.location.service.LocationService;
 import com._s3k.runsync.global.security.jwt.JwtValidator;
 import com._s3k.runsync.global.security.jwt.dto.JwtUserInfo;
@@ -15,6 +15,10 @@ import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.simp.stomp.StompCommand;
 import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.messaging.support.MessageBuilder;
+
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -34,7 +38,7 @@ class WebSocketAuthInterceptorTest {
     private LocationService locationService;
 
     @Mock
-    private ArtRunService artRunService;
+    private ArtRunParticipantRepository artRunParticipantRepository;
 
     @Mock
     private MessageChannel channel;
@@ -45,6 +49,21 @@ class WebSocketAuthInterceptorTest {
         if (principalName != null) {
             accessor.setUser(() -> principalName);
         }
+        accessor.setSubscriptionId("sub-0");
+        accessor.setSessionAttributes(new HashMap<>());
+        accessor.setSessionId("test-session");
+        return MessageBuilder.createMessage(new byte[0], accessor.getMessageHeaders());
+    }
+
+    private Message<?> buildArtRunSubscribe(String destination, String principalName, String subscriptionId,
+                                            Map<String, Object> sessionAttributes) {
+        StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.SUBSCRIBE);
+        accessor.setDestination(destination);
+        if (principalName != null) {
+            accessor.setUser(() -> principalName);
+        }
+        accessor.setSubscriptionId(subscriptionId);
+        accessor.setSessionAttributes(sessionAttributes);
         accessor.setSessionId("test-session");
         return MessageBuilder.createMessage(new byte[0], accessor.getMessageHeaders());
     }
@@ -116,7 +135,7 @@ class WebSocketAuthInterceptorTest {
     @DisplayName("협동 러닝 세션 topic 정상 구독 허용 - 참가자")
     void subscribe_validArtRunTopic_allowed() {
         // given
-        given(artRunService.isParticipant(1L, 100L)).willReturn(true);
+        given(artRunParticipantRepository.existsByArtRunSession_IdAndUser_Id(100L, 1L)).willReturn(true);
         Message<?> message = buildSubscribeMessage("/topic/artrun/100", "1");
 
         // when
@@ -130,7 +149,7 @@ class WebSocketAuthInterceptorTest {
     @DisplayName("참가자가 아닌 사용자의 협동 러닝 세션 topic 구독 거부")
     void subscribe_notParticipant_throwsException() {
         // given
-        given(artRunService.isParticipant(1L, 100L)).willReturn(false);
+        given(artRunParticipantRepository.existsByArtRunSession_IdAndUser_Id(100L, 1L)).willReturn(false);
         Message<?> message = buildSubscribeMessage("/topic/artrun/100", "1");
 
         // when & then
@@ -149,6 +168,45 @@ class WebSocketAuthInterceptorTest {
         assertThatThrownBy(() -> interceptor.preSend(message, channel))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("잘못된 구독 경로입니다.");
+    }
+
+    @Test
+    @DisplayName("협동 러닝 세션 구독 시 sessionId가 세션 속성에 캐싱된다")
+    void subscribe_validArtRunTopic_cachesSubscription() {
+        // given
+        given(artRunParticipantRepository.existsByArtRunSession_IdAndUser_Id(100L, 1L)).willReturn(true);
+        Map<String, Object> attributes = new HashMap<>();
+        Message<?> message = buildArtRunSubscribe("/topic/artrun/100", "1", "sub-7", attributes);
+
+        // when
+        interceptor.preSend(message, channel);
+
+        // then
+        Object subscriptions = attributes.get(WebSocketAuthInterceptor.ARTRUN_SUBSCRIPTIONS);
+        assertThat(subscriptions).isInstanceOf(Map.class);
+        assertThat((Map<String, Long>) subscriptions).containsEntry("sub-7", 100L);
+    }
+
+    @Test
+    @DisplayName("UNSUBSCRIBE 시 캐싱된 구독이 제거된다")
+    void unsubscribe_removesCachedSubscription() {
+        // given
+        Map<String, Long> subscriptions = new ConcurrentHashMap<>();
+        subscriptions.put("sub-7", 100L);
+        Map<String, Object> attributes = new HashMap<>();
+        attributes.put(WebSocketAuthInterceptor.ARTRUN_SUBSCRIPTIONS, subscriptions);
+
+        StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.UNSUBSCRIBE);
+        accessor.setSubscriptionId("sub-7");
+        accessor.setSessionAttributes(attributes);
+        accessor.setSessionId("test-session");
+        Message<?> message = MessageBuilder.createMessage(new byte[0], accessor.getMessageHeaders());
+
+        // when
+        interceptor.preSend(message, channel);
+
+        // then
+        assertThat(subscriptions).doesNotContainKey("sub-7");
     }
 
     @Test
