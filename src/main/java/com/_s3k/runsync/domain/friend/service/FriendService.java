@@ -19,6 +19,7 @@ import com._s3k.runsync.entity.enums.FriendRequestStatus;
 import com._s3k.runsync.entity.enums.RunningSessionStatus;
 import com._s3k.runsync.global.exception.GlobalException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -56,7 +57,7 @@ public class FriendService {
                 .filter(u -> !Boolean.TRUE.equals(u.getIsDeleted()))
                 .orElseThrow(() -> new GlobalException(UserErrorCode.USER_NOT_FOUND));
 
-        if (friendRequestRepository.existsBySenderIdAndReceiverIdAndStatus(senderId, receiverId, FriendRequestStatus.PENDING)) {
+        if (friendRequestRepository.existsBySender_IdAndReceiver_IdAndStatus(senderId, receiverId, FriendRequestStatus.PENDING)) {
             throw new GlobalException(FriendErrorCode.FRIEND_REQUEST_ALREADY_SENT);
         }
 
@@ -64,8 +65,12 @@ public class FriendService {
             throw new GlobalException(FriendErrorCode.FRIEND_ALREADY_EXISTS);
         }
 
-        FriendRequest friendRequest = friendRequestRepository.save(FriendRequest.of(sender, receiver));
-        return FriendRequestRes.of(friendRequest);
+        try {
+            FriendRequest friendRequest = friendRequestRepository.save(FriendRequest.of(sender, receiver));
+            return FriendRequestRes.of(friendRequest);
+        } catch (DataIntegrityViolationException e) {
+            throw new GlobalException(FriendErrorCode.FRIEND_REQUEST_ALREADY_SENT);
+        }
     }
 
     @Transactional(readOnly = true)
