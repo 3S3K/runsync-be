@@ -15,6 +15,7 @@ import com._s3k.runsync.entity.enums.Role;
 import com._s3k.runsync.domain.users.dto.request.UserUpdateReq;
 import com._s3k.runsync.domain.users.dto.response.RecordRes;
 import com._s3k.runsync.domain.users.dto.response.UserInfoRes;
+import com._s3k.runsync.domain.users.dto.response.UserProfileRes;
 import com._s3k.runsync.domain.users.dto.response.UserRecordsScrollRes;
 import com._s3k.runsync.domain.users.dto.response.UserSummaryRes;
 import com._s3k.runsync.domain.users.dto.response.UserUpdateRes;
@@ -40,6 +41,15 @@ public class UserService {
                 .orElseThrow(() -> new GlobalException(UserErrorCode.USER_NOT_FOUND));
 
         return UserInfoRes.of(user);
+    }
+
+    @Transactional(readOnly = true)
+    public UserProfileRes getUserById(Long targetUserId) {
+        User user = userRepository.findById(targetUserId)
+                .filter(u -> !Boolean.TRUE.equals(u.getIsDeleted()))
+                .orElseThrow(() -> new GlobalException(UserErrorCode.USER_NOT_FOUND));
+
+        return UserProfileRes.of(user);
     }
 
     @Transactional
