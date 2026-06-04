@@ -1,14 +1,23 @@
 package com._s3k.runsync.domain.friend.service;
 
+import com._s3k.runsync.domain.friend.dto.request.FriendRequestReq;
 import com._s3k.runsync.domain.friend.dto.response.FriendListRes;
+import com._s3k.runsync.domain.friend.dto.response.FriendRequestRes;
+import com._s3k.runsync.domain.friend.exception.FriendErrorCode;
+import com._s3k.runsync.domain.friend.repository.FriendRequestRepository;
 import com._s3k.runsync.domain.friend.repository.FriendshipRepository;
 import com._s3k.runsync.domain.run.repository.RunRecordRepository;
 import com._s3k.runsync.domain.run.repository.RunningSessionRepository;
+import com._s3k.runsync.domain.users.exception.UserErrorCode;
+import com._s3k.runsync.domain.users.repository.UserRepository;
+import com._s3k.runsync.entity.FriendRequest;
 import com._s3k.runsync.entity.RunRecord;
 import com._s3k.runsync.entity.RunningSession;
 import com._s3k.runsync.entity.User;
 import com._s3k.runsync.entity.enums.ActivityStatus;
+import com._s3k.runsync.entity.enums.FriendRequestStatus;
 import com._s3k.runsync.entity.enums.RunningSessionStatus;
+import com._s3k.runsync.global.exception.GlobalException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,8 +35,38 @@ import java.util.stream.Collectors;
 public class FriendService {
 
     private final FriendshipRepository friendshipRepository;
+    private final FriendRequestRepository friendRequestRepository;
+    private final UserRepository userRepository;
     private final RunningSessionRepository runningSessionRepository;
     private final RunRecordRepository runRecordRepository;
+
+    @Transactional
+    public FriendRequestRes createFriendRequest(Long senderId, FriendRequestReq request) {
+        Long receiverId = request.getReceiverId();
+
+        if (senderId.equals(receiverId)) {
+            throw new GlobalException(FriendErrorCode.FRIEND_SELF_REQUEST);
+        }
+
+        User sender = userRepository.findById(senderId)
+                .filter(u -> !Boolean.TRUE.equals(u.getIsDeleted()))
+                .orElseThrow(() -> new GlobalException(UserErrorCode.USER_NOT_FOUND));
+
+        User receiver = userRepository.findById(receiverId)
+                .filter(u -> !Boolean.TRUE.equals(u.getIsDeleted()))
+                .orElseThrow(() -> new GlobalException(UserErrorCode.USER_NOT_FOUND));
+
+        if (friendRequestRepository.existsBySenderIdAndReceiverIdAndStatus(senderId, receiverId, FriendRequestStatus.PENDING)) {
+            throw new GlobalException(FriendErrorCode.FRIEND_REQUEST_ALREADY_SENT);
+        }
+
+        if (friendshipRepository.existsByUser_IdAndFriend_Id(senderId, receiverId)) {
+            throw new GlobalException(FriendErrorCode.FRIEND_ALREADY_EXISTS);
+        }
+
+        FriendRequest friendRequest = friendRequestRepository.save(FriendRequest.of(sender, receiver));
+        return FriendRequestRes.of(friendRequest);
+    }
 
     @Transactional(readOnly = true)
     public List<FriendListRes> getFriendsByUserId(Long userId) {
