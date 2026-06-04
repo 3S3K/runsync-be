@@ -159,6 +159,11 @@ public class ArtRunService {
         artRunSessionRepository.delete(session);
     }
 
+    @Transactional(readOnly = true)
+    public boolean isParticipant(Long userId, Long sessionId) {
+        return artRunParticipantRepository.existsByArtRunSession_IdAndUser_Id(sessionId, userId);
+    }
+
     private Map<Long, Long> countParticipantsBySession(List<ArtRunSession> sessions) {
         if (sessions.isEmpty()) {
             return Map.of();

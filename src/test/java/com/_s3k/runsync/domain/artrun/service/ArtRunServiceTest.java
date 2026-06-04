@@ -435,6 +435,26 @@ class ArtRunServiceTest {
                         .isEqualTo(ArtRunErrorCode.SESSION_NOT_FOUND));
     }
 
+    @Test
+    @DisplayName("참가자 여부 확인 - 참가중이면 true")
+    void isParticipant_true() {
+        // given
+        given(artRunParticipantRepository.existsByArtRunSession_IdAndUser_Id(100L, 10L)).willReturn(true);
+
+        // when & then
+        assertThat(artRunService.isParticipant(10L, 100L)).isTrue();
+    }
+
+    @Test
+    @DisplayName("참가자 여부 확인 - 미참가면 false")
+    void isParticipant_false() {
+        // given
+        given(artRunParticipantRepository.existsByArtRunSession_IdAndUser_Id(100L, 10L)).willReturn(false);
+
+        // when & then
+        assertThat(artRunService.isParticipant(10L, 100L)).isFalse();
+    }
+
     private ArtRunStatusUpdateReq statusReq(ArtRunStatus status) {
         ArtRunStatusUpdateReq request = new ArtRunStatusUpdateReq();
         ReflectionTestUtils.setField(request, "status", status);
