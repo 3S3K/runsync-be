@@ -23,7 +23,7 @@ public class UserProfileRes {
         this.profileImage = profileImage;
     }
 
-    public static UserProfileRes fromUser(User user) {
+    public static UserProfileRes of(User user) {
         return new UserProfileRes(user.getId(), user.getNickname(), user.getProfileImage());
     }
 }
