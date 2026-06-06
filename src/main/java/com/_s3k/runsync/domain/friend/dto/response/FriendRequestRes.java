@@ -1,6 +1,7 @@
 package com._s3k.runsync.domain.friend.dto.response;
 
 import com._s3k.runsync.entity.FriendRequest;
+import com._s3k.runsync.entity.enums.FriendRequestStatus;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Getter;
 
@@ -12,14 +13,14 @@ public class FriendRequestRes {
     private Long requestId;
 
     @Schema(description = "요청 상태", example = "PENDING")
-    private String status;
+    private FriendRequestStatus status;
 
-    private FriendRequestRes(Long requestId, String status) {
+    private FriendRequestRes(Long requestId, FriendRequestStatus status) {
         this.requestId = requestId;
         this.status = status;
     }
 
     public static FriendRequestRes of(FriendRequest friendRequest) {
-        return new FriendRequestRes(friendRequest.getId(), friendRequest.getStatus().name());
+        return new FriendRequestRes(friendRequest.getId(), friendRequest.getStatus());
     }
 }

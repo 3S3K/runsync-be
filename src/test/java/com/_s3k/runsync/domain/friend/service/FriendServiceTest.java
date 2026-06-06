@@ -62,8 +62,7 @@ class FriendServiceTest {
     @DisplayName("친구 요청 정상 전송")
     void createFriendRequest_success() {
         // given
-        FriendRequestReq req = new FriendRequestReq();
-        req.setReceiverId(2L);
+        FriendRequestReq req = FriendRequestReq.of(2L);
 
         User sender = mock(User.class);
         User receiver = mock(User.class);
@@ -82,15 +81,14 @@ class FriendServiceTest {
 
         // then
         assertThat(result.getRequestId()).isEqualTo(1L);
-        assertThat(result.getStatus()).isEqualTo(FriendRequestStatus.PENDING.name());
+        assertThat(result.getStatus()).isEqualTo(FriendRequestStatus.PENDING);
     }
 
     @Test
     @DisplayName("자기 자신에게 친구 요청 시 FRIEND_SELF_REQUEST 예외 발생")
     void createFriendRequest_selfRequest() {
         // given
-        FriendRequestReq req = new FriendRequestReq();
-        req.setReceiverId(1L);
+        FriendRequestReq req = FriendRequestReq.of(1L);
 
         // when & then
         assertThatThrownBy(() -> friendService.createFriendRequest(1L, req))
@@ -103,8 +101,7 @@ class FriendServiceTest {
     @DisplayName("존재하지 않거나 탈퇴한 수신자에게 요청 시 USER_NOT_FOUND 예외 발생")
     void createFriendRequest_receiverNotFound() {
         // given
-        FriendRequestReq req = new FriendRequestReq();
-        req.setReceiverId(2L);
+        FriendRequestReq req = FriendRequestReq.of(2L);
 
         User sender = mock(User.class);
         given(userRepository.findById(1L)).willReturn(Optional.of(sender));
@@ -121,8 +118,7 @@ class FriendServiceTest {
     @DisplayName("탈퇴한 수신자에게 요청 시 USER_NOT_FOUND 예외 발생")
     void createFriendRequest_receiverDeleted() {
         // given
-        FriendRequestReq req = new FriendRequestReq();
-        req.setReceiverId(2L);
+        FriendRequestReq req = FriendRequestReq.of(2L);
 
         User sender = mock(User.class);
         User deletedReceiver = mock(User.class);
@@ -141,8 +137,7 @@ class FriendServiceTest {
     @DisplayName("이미 PENDING 요청이 있으면 FRIEND_REQUEST_ALREADY_SENT 예외 발생")
     void createFriendRequest_alreadySent() {
         // given
-        FriendRequestReq req = new FriendRequestReq();
-        req.setReceiverId(2L);
+        FriendRequestReq req = FriendRequestReq.of(2L);
 
         User sender = mock(User.class);
         User receiver = mock(User.class);
@@ -161,8 +156,7 @@ class FriendServiceTest {
     @DisplayName("이미 친구 관계이면 FRIEND_ALREADY_EXISTS 예외 발생")
     void createFriendRequest_alreadyFriends() {
         // given
-        FriendRequestReq req = new FriendRequestReq();
-        req.setReceiverId(2L);
+        FriendRequestReq req = FriendRequestReq.of(2L);
 
         User sender = mock(User.class);
         User receiver = mock(User.class);
