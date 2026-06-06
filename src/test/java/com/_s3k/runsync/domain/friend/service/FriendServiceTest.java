@@ -2,6 +2,7 @@ package com._s3k.runsync.domain.friend.service;
 
 import com._s3k.runsync.domain.friend.dto.response.FriendListRes;
 import com._s3k.runsync.domain.friend.dto.response.ReceivedFriendRequestRes;
+import com._s3k.runsync.domain.friend.dto.response.SentFriendRequestRes;
 import com._s3k.runsync.domain.friend.repository.FriendRequestRepository;
 import com._s3k.runsync.domain.friend.repository.FriendshipRepository;
 import com._s3k.runsync.domain.run.repository.RunRecordRepository;
@@ -46,6 +47,49 @@ class FriendServiceTest {
 
     @Mock
     private RunRecordRepository runRecordRepository;
+
+    @Test
+    @DisplayName("보낸 PENDING 친구 요청이 없으면 빈 리스트 반환")
+    void getSentFriendRequests_empty() {
+        // given
+        given(friendRequestRepository.findBySender_IdAndStatus(1L, FriendRequestStatus.PENDING))
+                .willReturn(List.of());
+
+        // when
+        List<SentFriendRequestRes> result = friendService.getSentFriendRequests(1L);
+
+        // then
+        assertThat(result).isEmpty();
+    }
+
+    @Test
+    @DisplayName("보낸 PENDING 친구 요청 목록 정상 반환")
+    void getSentFriendRequests_success() {
+        // given
+        User receiver = mock(User.class);
+        given(receiver.getId()).willReturn(4L);
+        given(receiver.getNickname()).willReturn("한현우");
+
+        FriendRequest friendRequest = mock(FriendRequest.class);
+        given(friendRequest.getId()).willReturn(11L);
+        given(friendRequest.getReceiver()).willReturn(receiver);
+        given(friendRequest.getStatus()).willReturn(FriendRequestStatus.PENDING);
+        given(friendRequest.getCreatedAt()).willReturn(LocalDateTime.of(2026, 4, 10, 14, 5));
+
+        given(friendRequestRepository.findBySender_IdAndStatus(1L, FriendRequestStatus.PENDING))
+                .willReturn(List.of(friendRequest));
+
+        // when
+        List<SentFriendRequestRes> result = friendService.getSentFriendRequests(1L);
+
+        // then
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).getRequestId()).isEqualTo(11L);
+        assertThat(result.get(0).getReceiverId()).isEqualTo(4L);
+        assertThat(result.get(0).getReceiverNickname()).isEqualTo("한현우");
+        assertThat(result.get(0).getStatus()).isEqualTo(FriendRequestStatus.PENDING);
+        assertThat(result.get(0).getCreatedAt()).isEqualTo(LocalDateTime.of(2026, 4, 10, 14, 5));
+    }
 
     @Test
     @DisplayName("받은 PENDING 친구 요청이 없으면 빈 리스트 반환")

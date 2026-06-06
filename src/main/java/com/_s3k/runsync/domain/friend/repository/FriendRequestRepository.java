@@ -8,4 +8,5 @@ import java.util.List;
 
 public interface FriendRequestRepository extends JpaRepository<FriendRequest, Long> {
     List<FriendRequest> findByReceiver_IdAndStatus(Long receiverId, FriendRequestStatus status);
+    List<FriendRequest> findBySender_IdAndStatus(Long senderId, FriendRequestStatus status);
 }

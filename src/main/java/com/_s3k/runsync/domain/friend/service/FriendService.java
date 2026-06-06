@@ -2,6 +2,7 @@ package com._s3k.runsync.domain.friend.service;
 
 import com._s3k.runsync.domain.friend.dto.response.FriendListRes;
 import com._s3k.runsync.domain.friend.dto.response.ReceivedFriendRequestRes;
+import com._s3k.runsync.domain.friend.dto.response.SentFriendRequestRes;
 import com._s3k.runsync.domain.friend.repository.FriendRequestRepository;
 import com._s3k.runsync.domain.friend.repository.FriendshipRepository;
 import com._s3k.runsync.domain.run.repository.RunRecordRepository;
@@ -33,6 +34,14 @@ public class FriendService {
     private final FriendRequestRepository friendRequestRepository;
     private final RunningSessionRepository runningSessionRepository;
     private final RunRecordRepository runRecordRepository;
+
+    @Transactional(readOnly = true)
+    public List<SentFriendRequestRes> getSentFriendRequests(Long userId) {
+        return friendRequestRepository.findBySender_IdAndStatus(userId, FriendRequestStatus.PENDING)
+                .stream()
+                .map(SentFriendRequestRes::of)
+                .toList();
+    }
 
     @Transactional(readOnly = true)
     public List<ReceivedFriendRequestRes> getReceivedFriendRequests(Long userId) {
