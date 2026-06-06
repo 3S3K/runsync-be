@@ -1,13 +1,17 @@
 package com._s3k.runsync.domain.friend.service;
 
 import com._s3k.runsync.domain.friend.dto.response.FriendListRes;
+import com._s3k.runsync.domain.friend.dto.response.ReceivedFriendRequestRes;
+import com._s3k.runsync.domain.friend.repository.FriendRequestRepository;
 import com._s3k.runsync.domain.friend.repository.FriendshipRepository;
 import com._s3k.runsync.domain.run.repository.RunRecordRepository;
 import com._s3k.runsync.domain.run.repository.RunningSessionRepository;
+import com._s3k.runsync.entity.FriendRequest;
 import com._s3k.runsync.entity.RunRecord;
 import com._s3k.runsync.entity.RunningSession;
 import com._s3k.runsync.entity.User;
 import com._s3k.runsync.entity.enums.ActivityStatus;
+import com._s3k.runsync.entity.enums.FriendRequestStatus;
 import com._s3k.runsync.entity.enums.RunningSessionStatus;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -35,10 +39,56 @@ class FriendServiceTest {
     private FriendshipRepository friendshipRepository;
 
     @Mock
+    private FriendRequestRepository friendRequestRepository;
+
+    @Mock
     private RunningSessionRepository runningSessionRepository;
 
     @Mock
     private RunRecordRepository runRecordRepository;
+
+    @Test
+    @DisplayName("받은 PENDING 친구 요청이 없으면 빈 리스트 반환")
+    void getReceivedFriendRequests_empty() {
+        // given
+        given(friendRequestRepository.findByReceiver_IdAndStatus(1L, FriendRequestStatus.PENDING))
+                .willReturn(List.of());
+
+        // when
+        List<ReceivedFriendRequestRes> result = friendService.getReceivedFriendRequests(1L);
+
+        // then
+        assertThat(result).isEmpty();
+    }
+
+    @Test
+    @DisplayName("받은 PENDING 친구 요청 목록 정상 반환")
+    void getReceivedFriendRequests_success() {
+        // given
+        User sender = mock(User.class);
+        given(sender.getId()).willReturn(2L);
+        given(sender.getNickname()).willReturn("runner123");
+
+        FriendRequest friendRequest = mock(FriendRequest.class);
+        given(friendRequest.getId()).willReturn(1L);
+        given(friendRequest.getSender()).willReturn(sender);
+        given(friendRequest.getStatus()).willReturn(FriendRequestStatus.PENDING);
+        given(friendRequest.getCreatedAt()).willReturn(LocalDateTime.of(2026, 6, 1, 10, 0));
+
+        given(friendRequestRepository.findByReceiver_IdAndStatus(1L, FriendRequestStatus.PENDING))
+                .willReturn(List.of(friendRequest));
+
+        // when
+        List<ReceivedFriendRequestRes> result = friendService.getReceivedFriendRequests(1L);
+
+        // then
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).getRequestId()).isEqualTo(1L);
+        assertThat(result.get(0).getSenderId()).isEqualTo(2L);
+        assertThat(result.get(0).getSenderNickname()).isEqualTo("runner123");
+        assertThat(result.get(0).getStatus()).isEqualTo(FriendRequestStatus.PENDING);
+        assertThat(result.get(0).getCreatedAt()).isEqualTo(LocalDateTime.of(2026, 6, 1, 10, 0));
+    }
 
     @Test
     @DisplayName("친구가 없으면 빈 리스트 반환")

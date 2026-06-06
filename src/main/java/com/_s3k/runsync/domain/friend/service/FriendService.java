@@ -1,13 +1,17 @@
 package com._s3k.runsync.domain.friend.service;
 
 import com._s3k.runsync.domain.friend.dto.response.FriendListRes;
+import com._s3k.runsync.domain.friend.dto.response.ReceivedFriendRequestRes;
+import com._s3k.runsync.domain.friend.repository.FriendRequestRepository;
 import com._s3k.runsync.domain.friend.repository.FriendshipRepository;
 import com._s3k.runsync.domain.run.repository.RunRecordRepository;
 import com._s3k.runsync.domain.run.repository.RunningSessionRepository;
+import com._s3k.runsync.entity.FriendRequest;
 import com._s3k.runsync.entity.RunRecord;
 import com._s3k.runsync.entity.RunningSession;
 import com._s3k.runsync.entity.User;
 import com._s3k.runsync.entity.enums.ActivityStatus;
+import com._s3k.runsync.entity.enums.FriendRequestStatus;
 import com._s3k.runsync.entity.enums.RunningSessionStatus;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -26,8 +30,17 @@ import java.util.stream.Collectors;
 public class FriendService {
 
     private final FriendshipRepository friendshipRepository;
+    private final FriendRequestRepository friendRequestRepository;
     private final RunningSessionRepository runningSessionRepository;
     private final RunRecordRepository runRecordRepository;
+
+    @Transactional(readOnly = true)
+    public List<ReceivedFriendRequestRes> getReceivedFriendRequests(Long userId) {
+        return friendRequestRepository.findByReceiver_IdAndStatus(userId, FriendRequestStatus.PENDING)
+                .stream()
+                .map(ReceivedFriendRequestRes::of)
+                .toList();
+    }
 
     @Transactional(readOnly = true)
     public List<FriendListRes> getFriendsByUserId(Long userId) {
