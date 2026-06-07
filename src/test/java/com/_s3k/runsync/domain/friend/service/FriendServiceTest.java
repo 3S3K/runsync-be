@@ -1,6 +1,7 @@
 package com._s3k.runsync.domain.friend.service;
 
 import com._s3k.runsync.domain.friend.dto.request.FriendRequestReq;
+import com._s3k.runsync.domain.friend.dto.response.FriendAcceptRes;
 import com._s3k.runsync.domain.friend.dto.response.FriendListRes;
 import com._s3k.runsync.domain.friend.dto.response.FriendRequestRes;
 import com._s3k.runsync.domain.friend.dto.response.ReceivedFriendRequestRes;
@@ -384,5 +385,80 @@ class FriendServiceTest {
         assertThat(result.get(1).getFriendUserId()).isEqualTo(2L); // OFFLINE, 최신 기록
         assertThat(result.get(2).getFriendUserId()).isEqualTo(3L); // OFFLINE, 오래된 기록
         assertThat(result.get(3).getFriendUserId()).isEqualTo(4L); // OFFLINE, 기록 없음
+    }
+
+    @Test
+    @DisplayName("친구 요청 정상 수락 - Friendship 양방향 저장, ACCEPTED 반환")
+    void acceptFriendRequest_success() {
+        // given
+        User sender = mock(User.class);
+        User receiver = mock(User.class);
+        given(receiver.getId()).willReturn(1L);
+
+        FriendRequest friendRequest = mock(FriendRequest.class);
+        given(friendRequest.getId()).willReturn(10L);
+        given(friendRequest.getReceiver()).willReturn(receiver);
+        given(friendRequest.getSender()).willReturn(sender);
+        given(friendRequest.getStatus())
+                .willReturn(FriendRequestStatus.PENDING)
+                .willReturn(FriendRequestStatus.ACCEPTED);
+        given(friendRequestRepository.findById(10L)).willReturn(Optional.of(friendRequest));
+
+        // when
+        FriendAcceptRes result = friendService.acceptFriendRequest(1L, 10L);
+
+        // then
+        assertThat(result.getRequestId()).isEqualTo(10L);
+        assertThat(result.getStatus()).isEqualTo(FriendRequestStatus.ACCEPTED);
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 친구 요청 수락 시 FRIEND_REQUEST_NOT_FOUND 예외 발생")
+    void acceptFriendRequest_notFound() {
+        // given
+        given(friendRequestRepository.findById(10L)).willReturn(Optional.empty());
+
+        // when & then
+        assertThatThrownBy(() -> friendService.acceptFriendRequest(1L, 10L))
+                .isInstanceOf(GlobalException.class)
+                .satisfies(e -> assertThat(((GlobalException) e).getResultCode())
+                        .isEqualTo(FriendErrorCode.FRIEND_REQUEST_NOT_FOUND));
+    }
+
+    @Test
+    @DisplayName("receiver가 아닌 사용자가 수락 시도 시 FRIEND_REQUEST_NOT_FOUND 예외 발생")
+    void acceptFriendRequest_notReceiver() {
+        // given
+        User receiver = mock(User.class);
+        given(receiver.getId()).willReturn(99L);
+
+        FriendRequest friendRequest = mock(FriendRequest.class);
+        given(friendRequest.getReceiver()).willReturn(receiver);
+        given(friendRequestRepository.findById(10L)).willReturn(Optional.of(friendRequest));
+
+        // when & then
+        assertThatThrownBy(() -> friendService.acceptFriendRequest(1L, 10L))
+                .isInstanceOf(GlobalException.class)
+                .satisfies(e -> assertThat(((GlobalException) e).getResultCode())
+                        .isEqualTo(FriendErrorCode.FRIEND_REQUEST_NOT_FOUND));
+    }
+
+    @Test
+    @DisplayName("이미 처리된 친구 요청 수락 시 FRIEND_REQUEST_ALREADY_PROCESSED 예외 발생")
+    void acceptFriendRequest_alreadyProcessed() {
+        // given
+        User receiver = mock(User.class);
+        given(receiver.getId()).willReturn(1L);
+
+        FriendRequest friendRequest = mock(FriendRequest.class);
+        given(friendRequest.getReceiver()).willReturn(receiver);
+        given(friendRequest.getStatus()).willReturn(FriendRequestStatus.ACCEPTED);
+        given(friendRequestRepository.findById(10L)).willReturn(Optional.of(friendRequest));
+
+        // when & then
+        assertThatThrownBy(() -> friendService.acceptFriendRequest(1L, 10L))
+                .isInstanceOf(GlobalException.class)
+                .satisfies(e -> assertThat(((GlobalException) e).getResultCode())
+                        .isEqualTo(FriendErrorCode.FRIEND_REQUEST_ALREADY_PROCESSED));
     }
 }

@@ -1,6 +1,7 @@
 package com._s3k.runsync.domain.friend.service;
 
 import com._s3k.runsync.domain.friend.dto.request.FriendRequestReq;
+import com._s3k.runsync.domain.friend.dto.response.FriendAcceptRes;
 import com._s3k.runsync.domain.friend.dto.response.FriendListRes;
 import com._s3k.runsync.domain.friend.dto.response.FriendRequestRes;
 import com._s3k.runsync.domain.friend.dto.response.ReceivedFriendRequestRes;
@@ -19,6 +20,7 @@ import com._s3k.runsync.entity.User;
 import com._s3k.runsync.entity.enums.ActivityStatus;
 import com._s3k.runsync.entity.enums.FriendRequestStatus;
 import com._s3k.runsync.entity.enums.RunningSessionStatus;
+import com._s3k.runsync.entity.Friendship;
 import com._s3k.runsync.global.exception.GlobalException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -73,6 +75,26 @@ public class FriendService {
         } catch (DataIntegrityViolationException e) {
             throw new GlobalException(FriendErrorCode.FRIEND_REQUEST_ALREADY_SENT);
         }
+    }
+
+    @Transactional
+    public FriendAcceptRes acceptFriendRequest(Long userId, Long requestId) {
+        FriendRequest friendRequest = friendRequestRepository.findById(requestId)
+                .filter(r -> r.getReceiver().getId().equals(userId))
+                .orElseThrow(() -> new GlobalException(FriendErrorCode.FRIEND_REQUEST_NOT_FOUND));
+
+        if (friendRequest.getStatus() != FriendRequestStatus.PENDING) {
+            throw new GlobalException(FriendErrorCode.FRIEND_REQUEST_ALREADY_PROCESSED);
+        }
+
+        friendRequest.accept();
+
+        User sender = friendRequest.getSender();
+        User receiver = friendRequest.getReceiver();
+        friendshipRepository.save(Friendship.of(receiver, sender));
+        friendshipRepository.save(Friendship.of(sender, receiver));
+
+        return FriendAcceptRes.of(friendRequest);
     }
 
     @Transactional(readOnly = true)

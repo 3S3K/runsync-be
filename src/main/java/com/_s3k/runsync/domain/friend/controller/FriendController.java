@@ -1,6 +1,7 @@
 package com._s3k.runsync.domain.friend.controller;
 
 import com._s3k.runsync.domain.friend.dto.request.FriendRequestReq;
+import com._s3k.runsync.domain.friend.dto.response.FriendAcceptRes;
 import com._s3k.runsync.domain.friend.dto.response.FriendListRes;
 import com._s3k.runsync.domain.friend.dto.response.FriendRequestRes;
 import com._s3k.runsync.domain.friend.dto.response.ReceivedFriendRequestRes;
@@ -13,6 +14,8 @@ import lombok.RequiredArgsConstructor;
 import java.util.List;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -31,6 +34,14 @@ public class FriendController {
             @AuthenticationPrincipal Long userId,
             @Valid @RequestBody FriendRequestReq req) {
         return CommonResponse.success(friendService.createFriendRequest(userId, req));
+    }
+
+    @Operation(summary = "친구 요청 수락", description = "받은 친구 요청 수락. 로그인 필요")
+    @PatchMapping("/requests/{requestId}/accept")
+    public CommonResponse<FriendAcceptRes> acceptFriendRequest(
+            @AuthenticationPrincipal Long userId,
+            @PathVariable Long requestId) {
+        return CommonResponse.success(friendService.acceptFriendRequest(userId, requestId));
     }
 
     @Operation(summary = "친구 목록 조회", description = "친구 목록 및 활동 상태 조회. 로그인 필요")
