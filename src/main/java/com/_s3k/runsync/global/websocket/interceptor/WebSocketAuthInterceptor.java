@@ -1,6 +1,6 @@
 package com._s3k.runsync.global.websocket.interceptor;
 
-import com._s3k.runsync.domain.artrun.service.ArtRunService;
+import com._s3k.runsync.domain.artrun.repository.ArtRunParticipantRepository;
 import com._s3k.runsync.domain.location.service.LocationService;
 import com._s3k.runsync.global.security.jwt.JwtValidator;
 import com._s3k.runsync.global.security.jwt.dto.JwtUserInfo;
@@ -13,16 +13,21 @@ import org.springframework.messaging.support.ChannelInterceptor;
 import org.springframework.messaging.support.MessageHeaderAccessor;
 import org.springframework.stereotype.Component;
 
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+
 @Component
 @RequiredArgsConstructor
 public class WebSocketAuthInterceptor implements ChannelInterceptor {
+
+    public static final String ARTRUN_SUBSCRIPTIONS = "artRunSubscriptions";
 
     private static final String FRIEND_TOPIC_PATTERN = "^/topic/(status|location)/\\d+$";
     private static final String ARTRUN_TOPIC_PATTERN = "^/topic/artrun/\\d+$";
 
     private final JwtValidator jwtValidator;
     private final LocationService locationService;
-    private final ArtRunService artRunService;
+    private final ArtRunParticipantRepository artRunParticipantRepository;
 
     @Override
     public Message<?> preSend(Message<?> message, MessageChannel channel) {
@@ -86,14 +91,31 @@ public class WebSocketAuthInterceptor implements ChannelInterceptor {
                     throw new IllegalArgumentException("인증되지 않은 사용자입니다.");
                 }
 
-                String sessionId = destination.substring(destination.lastIndexOf('/') + 1);
-                String subscriberUserId = accessor.getUser().getName();
-                if (!artRunService.isParticipant(Long.parseLong(subscriberUserId), Long.parseLong(sessionId))) {
+                Long sessionId = Long.parseLong(destination.substring(destination.lastIndexOf('/') + 1));
+                Long subscriberUserId = Long.parseLong(accessor.getUser().getName());
+                if (!artRunParticipantRepository.existsByArtRunSession_IdAndUser_Id(sessionId, subscriberUserId)) {
                     throw new IllegalArgumentException("세션 참가자가 아니면 구독할 수 없습니다.");
                 }
+
+                // 구독 시 검증한 참가 정보를 세션에 캐싱 → 발행 시 DB 재조회 없이 활용
+                artRunSubscriptions(accessor).put(accessor.getSubscriptionId(), sessionId);
             }
         }
 
+        if (StompCommand.UNSUBSCRIBE.equals(accessor.getCommand())) {
+            artRunSubscriptions(accessor).remove(accessor.getSubscriptionId());
+        }
+
         return message;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Long> artRunSubscriptions(StompHeaderAccessor accessor) {
+        Map<String, Object> attributes = accessor.getSessionAttributes();
+        if (attributes == null) {
+            attributes = new ConcurrentHashMap<>();
+            accessor.setSessionAttributes(attributes);
+        }
+        return (Map<String, Long>) attributes.computeIfAbsent(ARTRUN_SUBSCRIPTIONS, k -> new ConcurrentHashMap<String, Long>());
     }
 }

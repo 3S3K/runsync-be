@@ -1,21 +1,23 @@
 package com._s3k.runsync.domain.location.handler;
 
 import com._s3k.runsync.domain.artrun.dto.response.ArtRunLocationRes;
-import com._s3k.runsync.domain.artrun.service.ArtRunService;
 import com._s3k.runsync.domain.run.service.RunSessionService;
 import com._s3k.runsync.global.exception.GlobalException;
 import com._s3k.runsync.global.websocket.dto.WebSocketMessage;
+import com._s3k.runsync.global.websocket.interceptor.WebSocketAuthInterceptor;
 import com._s3k.runsync.domain.location.dto.request.LocationUpdateReq;
 import com._s3k.runsync.domain.location.dto.response.FriendLocationRes;
 import com._s3k.runsync.domain.location.service.LocationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.handler.annotation.MessageExceptionHandler;
 import org.springframework.messaging.handler.annotation.MessageMapping;
+import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.messaging.simp.annotation.SendToUser;
 import org.springframework.stereotype.Controller;
 
 import java.security.Principal;
+import java.util.Map;
 
 @Controller
 @RequiredArgsConstructor
@@ -24,10 +26,10 @@ public class LocationMessageHandler {
     private final SimpMessagingTemplate messagingTemplate;
     private final LocationService locationService;
     private final RunSessionService runSessionService;
-    private final ArtRunService artRunService;
 
     @MessageMapping("/location")
-    public void handleLocation(WebSocketMessage<LocationUpdateReq> message, Principal principal) {
+    public void handleLocation(WebSocketMessage<LocationUpdateReq> message, Principal principal,
+                               SimpMessageHeaderAccessor headerAccessor) {
         if (principal == null) return;
         Long userId = Long.parseLong(principal.getName());
         LocationUpdateReq data = message.getData();
@@ -47,12 +49,20 @@ public class LocationMessageHandler {
                 WebSocketMessage.of("FRIEND_LOCATION_UPDATE", FriendLocationRes.of(userId, data.getLatitude(), data.getLongitude()))
         );
 
-        if (data.getArtRunSessionId() != null && artRunService.isParticipant(userId, data.getArtRunSessionId())) {
+        if (data.getArtRunSessionId() != null && isSubscribedToArtRun(headerAccessor, data.getArtRunSessionId())) {
             messagingTemplate.convertAndSend(
                     "/topic/artrun/" + data.getArtRunSessionId(),
                     WebSocketMessage.of("ARTRUN_LOCATION_UPDATE", ArtRunLocationRes.of(userId, data.getLatitude(), data.getLongitude()))
             );
         }
+    }
+
+    private boolean isSubscribedToArtRun(SimpMessageHeaderAccessor headerAccessor, Long artRunSessionId) {
+        if (headerAccessor.getSessionAttributes() == null) {
+            return false;
+        }
+        Object subscriptions = headerAccessor.getSessionAttributes().get(WebSocketAuthInterceptor.ARTRUN_SUBSCRIPTIONS);
+        return subscriptions instanceof Map<?, ?> map && map.containsValue(artRunSessionId);
     }
 
     @MessageMapping("/ping")
