@@ -3,6 +3,7 @@ package com._s3k.runsync.domain.friend.controller;
 import com._s3k.runsync.domain.friend.dto.request.FriendRequestReq;
 import com._s3k.runsync.domain.friend.dto.response.FriendListRes;
 import com._s3k.runsync.domain.friend.dto.response.FriendRequestRes;
+import com._s3k.runsync.domain.friend.dto.response.ReceivedFriendRequestRes;
 import com._s3k.runsync.domain.friend.service.FriendService;
 import com._s3k.runsync.global.common.dto.CommonResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -36,5 +37,12 @@ public class FriendController {
     public CommonResponse<List<FriendListRes>> getFriends(
             @AuthenticationPrincipal Long userId) {
         return CommonResponse.success(friendService.getFriendsByUserId(userId));
+    }
+
+    @Operation(summary = "받은 친구 요청 목록 조회", description = "내가 받은 PENDING 상태의 친구 요청 목록 조회. 로그인 필요")
+    @GetMapping("/requests/received")
+    public CommonResponse<List<ReceivedFriendRequestRes>> getReceivedFriendRequests(
+            @AuthenticationPrincipal Long userId) {
+        return CommonResponse.success(friendService.getReceivedFriendRequests(userId));
     }
 }

@@ -3,6 +3,7 @@ package com._s3k.runsync.domain.friend.service;
 import com._s3k.runsync.domain.friend.dto.request.FriendRequestReq;
 import com._s3k.runsync.domain.friend.dto.response.FriendListRes;
 import com._s3k.runsync.domain.friend.dto.response.FriendRequestRes;
+import com._s3k.runsync.domain.friend.dto.response.ReceivedFriendRequestRes;
 import com._s3k.runsync.domain.friend.exception.FriendErrorCode;
 import com._s3k.runsync.domain.friend.repository.FriendRequestRepository;
 import com._s3k.runsync.domain.friend.repository.FriendshipRepository;
@@ -71,6 +72,14 @@ public class FriendService {
         } catch (DataIntegrityViolationException e) {
             throw new GlobalException(FriendErrorCode.FRIEND_REQUEST_ALREADY_SENT);
         }
+    }
+
+    @Transactional(readOnly = true)
+    public List<ReceivedFriendRequestRes> getReceivedFriendRequests(Long userId) {
+        return friendRequestRepository.findByReceiver_IdAndStatusOrderByCreatedAtDesc(userId, FriendRequestStatus.PENDING)
+                .stream()
+                .map(ReceivedFriendRequestRes::of)
+                .toList();
     }
 
     @Transactional(readOnly = true)

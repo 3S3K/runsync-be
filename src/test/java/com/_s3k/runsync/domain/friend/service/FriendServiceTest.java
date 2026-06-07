@@ -3,6 +3,7 @@ package com._s3k.runsync.domain.friend.service;
 import com._s3k.runsync.domain.friend.dto.request.FriendRequestReq;
 import com._s3k.runsync.domain.friend.dto.response.FriendListRes;
 import com._s3k.runsync.domain.friend.dto.response.FriendRequestRes;
+import com._s3k.runsync.domain.friend.dto.response.ReceivedFriendRequestRes;
 import com._s3k.runsync.domain.friend.exception.FriendErrorCode;
 import com._s3k.runsync.domain.friend.repository.FriendRequestRepository;
 import com._s3k.runsync.domain.friend.repository.FriendshipRepository;
@@ -170,6 +171,49 @@ class FriendServiceTest {
                 .isInstanceOf(GlobalException.class)
                 .satisfies(e -> assertThat(((GlobalException) e).getResultCode())
                         .isEqualTo(FriendErrorCode.FRIEND_ALREADY_EXISTS));
+    }
+
+    @Test
+    @DisplayName("받은 PENDING 친구 요청이 없으면 빈 리스트 반환")
+    void getReceivedFriendRequests_empty() {
+        // given
+        given(friendRequestRepository.findByReceiver_IdAndStatusOrderByCreatedAtDesc(1L, FriendRequestStatus.PENDING))
+                .willReturn(List.of());
+
+        // when
+        List<ReceivedFriendRequestRes> result = friendService.getReceivedFriendRequests(1L);
+
+        // then
+        assertThat(result).isEmpty();
+    }
+
+    @Test
+    @DisplayName("받은 PENDING 친구 요청 목록 정상 반환")
+    void getReceivedFriendRequests_success() {
+        // given
+        User sender = mock(User.class);
+        given(sender.getId()).willReturn(2L);
+        given(sender.getNickname()).willReturn("runner123");
+
+        FriendRequest friendRequest = mock(FriendRequest.class);
+        given(friendRequest.getId()).willReturn(1L);
+        given(friendRequest.getSender()).willReturn(sender);
+        given(friendRequest.getStatus()).willReturn(FriendRequestStatus.PENDING);
+        given(friendRequest.getCreatedAt()).willReturn(LocalDateTime.of(2026, 6, 1, 10, 0));
+
+        given(friendRequestRepository.findByReceiver_IdAndStatusOrderByCreatedAtDesc(1L, FriendRequestStatus.PENDING))
+                .willReturn(List.of(friendRequest));
+
+        // when
+        List<ReceivedFriendRequestRes> result = friendService.getReceivedFriendRequests(1L);
+
+        // then
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).getRequestId()).isEqualTo(1L);
+        assertThat(result.get(0).getSenderId()).isEqualTo(2L);
+        assertThat(result.get(0).getSenderNickname()).isEqualTo("runner123");
+        assertThat(result.get(0).getStatus()).isEqualTo(FriendRequestStatus.PENDING);
+        assertThat(result.get(0).getCreatedAt()).isEqualTo(LocalDateTime.of(2026, 6, 1, 10, 0));
     }
 
     @Test
