@@ -41,6 +41,7 @@ import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
 class FriendServiceTest {
@@ -547,6 +548,32 @@ class FriendServiceTest {
                 .isInstanceOf(GlobalException.class)
                 .satisfies(e -> assertThat(((GlobalException) e).getResultCode())
                         .isEqualTo(FriendErrorCode.FRIEND_REQUEST_NOT_FOUND));
+    }
+
+    @Test
+    @DisplayName("친구 삭제 정상 처리 - 양방향 Friendship 삭제")
+    void deleteFriend_success() {
+        // given
+        given(friendshipRepository.existsByUser_IdAndFriend_Id(1L, 2L)).willReturn(true);
+
+        // when
+        friendService.deleteFriend(1L, 2L);
+
+        // then
+        verify(friendshipRepository).deleteFriendshipBidirectional(1L, 2L);
+    }
+
+    @Test
+    @DisplayName("친구 관계가 없으면 FRIEND_NOT_FOUND 예외 발생")
+    void deleteFriend_notFound() {
+        // given
+        given(friendshipRepository.existsByUser_IdAndFriend_Id(1L, 2L)).willReturn(false);
+
+        // when & then
+        assertThatThrownBy(() -> friendService.deleteFriend(1L, 2L))
+                .isInstanceOf(GlobalException.class)
+                .satisfies(e -> assertThat(((GlobalException) e).getResultCode())
+                        .isEqualTo(FriendErrorCode.FRIEND_NOT_FOUND));
     }
 
     @Test

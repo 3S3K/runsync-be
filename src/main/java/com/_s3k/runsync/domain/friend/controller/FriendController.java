@@ -10,10 +10,12 @@ import com._s3k.runsync.domain.friend.dto.response.SentFriendRequestRes;
 import com._s3k.runsync.domain.friend.service.FriendService;
 import com._s3k.runsync.global.common.dto.CommonResponse;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import java.util.List;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -51,6 +53,17 @@ public class FriendController {
             @AuthenticationPrincipal Long userId,
             @PathVariable Long requestId) {
         return CommonResponse.success(friendService.rejectFriendRequest(userId, requestId));
+    }
+
+    @Operation(summary = "친구 삭제", description = "친구 관계 삭제. 로그인 필요")
+    @DeleteMapping("/{friendUserId}")
+    public CommonResponse<Void> deleteFriend(
+            @Parameter(description = "사용자 ID", required = true)
+            @AuthenticationPrincipal Long userId,
+            @Parameter(description = "삭제할 친구 사용자 ID", required = true)
+            @PathVariable Long friendUserId) {
+        friendService.deleteFriend(userId, friendUserId);
+        return CommonResponse.success(null);
     }
 
     @Operation(summary = "친구 목록 조회", description = "친구 목록 및 활동 상태 조회. 로그인 필요")
