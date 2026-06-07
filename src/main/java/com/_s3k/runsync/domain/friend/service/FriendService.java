@@ -76,7 +76,7 @@ public class FriendService {
 
     @Transactional(readOnly = true)
     public List<ReceivedFriendRequestRes> getReceivedFriendRequests(Long userId) {
-        return friendRequestRepository.findByReceiver_IdAndStatus(userId, FriendRequestStatus.PENDING)
+        return friendRequestRepository.findByReceiver_IdAndStatusOrderByCreatedAtDesc(userId, FriendRequestStatus.PENDING)
                 .stream()
                 .map(ReceivedFriendRequestRes::of)
                 .toList();

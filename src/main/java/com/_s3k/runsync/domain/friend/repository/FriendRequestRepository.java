@@ -11,5 +11,5 @@ public interface FriendRequestRepository extends JpaRepository<FriendRequest, Lo
     boolean existsBySender_IdAndReceiver_IdAndStatus(Long senderId, Long receiverId, FriendRequestStatus status);
 
     @EntityGraph(attributePaths = {"sender"})
-    List<FriendRequest> findByReceiver_IdAndStatus(Long receiverId, FriendRequestStatus status);
+    List<FriendRequest> findByReceiver_IdAndStatusOrderByCreatedAtDesc(Long receiverId, FriendRequestStatus status);
 }

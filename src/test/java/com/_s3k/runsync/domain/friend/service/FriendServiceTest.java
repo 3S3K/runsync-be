@@ -177,7 +177,7 @@ class FriendServiceTest {
     @DisplayName("받은 PENDING 친구 요청이 없으면 빈 리스트 반환")
     void getReceivedFriendRequests_empty() {
         // given
-        given(friendRequestRepository.findByReceiver_IdAndStatus(1L, FriendRequestStatus.PENDING))
+        given(friendRequestRepository.findByReceiver_IdAndStatusOrderByCreatedAtDesc(1L, FriendRequestStatus.PENDING))
                 .willReturn(List.of());
 
         // when
@@ -201,7 +201,7 @@ class FriendServiceTest {
         given(friendRequest.getStatus()).willReturn(FriendRequestStatus.PENDING);
         given(friendRequest.getCreatedAt()).willReturn(LocalDateTime.of(2026, 6, 1, 10, 0));
 
-        given(friendRequestRepository.findByReceiver_IdAndStatus(1L, FriendRequestStatus.PENDING))
+        given(friendRequestRepository.findByReceiver_IdAndStatusOrderByCreatedAtDesc(1L, FriendRequestStatus.PENDING))
                 .willReturn(List.of(friendRequest));
 
         // when
