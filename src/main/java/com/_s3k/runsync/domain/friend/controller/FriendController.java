@@ -2,6 +2,7 @@ package com._s3k.runsync.domain.friend.controller;
 
 import com._s3k.runsync.domain.friend.dto.request.FriendRequestReq;
 import com._s3k.runsync.domain.friend.dto.response.FriendAcceptRes;
+import com._s3k.runsync.domain.friend.dto.response.FriendRejectRes;
 import com._s3k.runsync.domain.friend.dto.response.FriendListRes;
 import com._s3k.runsync.domain.friend.dto.response.FriendRequestRes;
 import com._s3k.runsync.domain.friend.dto.response.ReceivedFriendRequestRes;
@@ -42,6 +43,14 @@ public class FriendController {
             @AuthenticationPrincipal Long userId,
             @PathVariable Long requestId) {
         return CommonResponse.success(friendService.acceptFriendRequest(userId, requestId));
+    }
+
+    @Operation(summary = "친구 요청 거절", description = "받은 친구 요청 거절. 로그인 필요")
+    @PatchMapping("/requests/{requestId}/reject")
+    public CommonResponse<FriendRejectRes> rejectFriendRequest(
+            @AuthenticationPrincipal Long userId,
+            @PathVariable Long requestId) {
+        return CommonResponse.success(friendService.rejectFriendRequest(userId, requestId));
     }
 
     @Operation(summary = "친구 목록 조회", description = "친구 목록 및 활동 상태 조회. 로그인 필요")

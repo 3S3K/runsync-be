@@ -9,7 +9,7 @@ import lombok.NoArgsConstructor;
 
 @Entity
 @Table(name = "friend_requests",
-        uniqueConstraints = @UniqueConstraint(columnNames = {"sender_id", "receiver_id", "status"}))
+        uniqueConstraints = @UniqueConstraint(columnNames = {"sender_id", "receiver_id"}))
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class FriendRequest extends BaseEntity {
@@ -43,5 +43,13 @@ public class FriendRequest extends BaseEntity {
 
     public void accept() {
         this.status = FriendRequestStatus.ACCEPTED;
+    }
+
+    public void reject() {
+        this.status = FriendRequestStatus.REJECTED;
+    }
+
+    public void resend() {
+        this.status = FriendRequestStatus.PENDING;
     }
 }
