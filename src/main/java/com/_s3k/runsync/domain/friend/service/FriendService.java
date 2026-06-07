@@ -2,6 +2,7 @@ package com._s3k.runsync.domain.friend.service;
 
 import com._s3k.runsync.domain.friend.dto.request.FriendRequestReq;
 import com._s3k.runsync.domain.friend.dto.response.FriendAcceptRes;
+import com._s3k.runsync.domain.friend.dto.response.FriendRejectRes;
 import com._s3k.runsync.domain.friend.dto.response.FriendListRes;
 import com._s3k.runsync.domain.friend.dto.response.FriendRequestRes;
 import com._s3k.runsync.domain.friend.dto.response.ReceivedFriendRequestRes;
@@ -104,6 +105,20 @@ public class FriendService {
         }
 
         return FriendAcceptRes.of(friendRequest);
+    }
+
+    @Transactional
+    public FriendRejectRes rejectFriendRequest(Long userId, Long requestId) {
+        FriendRequest friendRequest = friendRequestRepository.findById(requestId)
+                .filter(r -> r.getReceiver().getId().equals(userId))
+                .orElseThrow(() -> new GlobalException(FriendErrorCode.FRIEND_REQUEST_NOT_FOUND));
+
+        if (friendRequest.getStatus() != FriendRequestStatus.PENDING) {
+            throw new GlobalException(FriendErrorCode.FRIEND_REQUEST_ALREADY_PROCESSED);
+        }
+
+        friendRequest.reject();
+        return FriendRejectRes.of(friendRequest);
     }
 
     @Transactional(readOnly = true)
