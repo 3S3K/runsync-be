@@ -10,6 +10,7 @@ import com._s3k.runsync.domain.friend.dto.response.SentFriendRequestRes;
 import com._s3k.runsync.domain.friend.service.FriendService;
 import com._s3k.runsync.global.common.dto.CommonResponse;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import java.util.List;
@@ -57,7 +58,9 @@ public class FriendController {
     @Operation(summary = "친구 삭제", description = "친구 관계 삭제. 로그인 필요")
     @DeleteMapping("/{friendUserId}")
     public CommonResponse<Void> deleteFriend(
+            @Parameter(description = "사용자 ID", required = true)
             @AuthenticationPrincipal Long userId,
+            @Parameter(description = "삭제할 친구 사용자 ID", required = true)
             @PathVariable Long friendUserId) {
         friendService.deleteFriend(userId, friendUserId);
         return CommonResponse.success(null);
