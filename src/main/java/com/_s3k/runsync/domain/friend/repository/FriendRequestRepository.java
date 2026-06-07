@@ -12,4 +12,7 @@ public interface FriendRequestRepository extends JpaRepository<FriendRequest, Lo
 
     @EntityGraph(attributePaths = {"sender"})
     List<FriendRequest> findByReceiver_IdAndStatusOrderByCreatedAtDesc(Long receiverId, FriendRequestStatus status);
+
+    @EntityGraph(attributePaths = {"receiver"})
+    List<FriendRequest> findBySender_IdAndStatusOrderByCreatedAtDesc(Long senderId, FriendRequestStatus status);
 }
