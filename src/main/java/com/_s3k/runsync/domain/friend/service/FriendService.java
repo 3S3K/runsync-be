@@ -66,6 +66,10 @@ public class FriendService {
             throw new GlobalException(FriendErrorCode.FRIEND_REQUEST_ALREADY_SENT);
         }
 
+        if (friendRequestRepository.existsBySender_IdAndReceiver_IdAndStatus(receiverId, senderId, FriendRequestStatus.PENDING)) {
+            throw new GlobalException(FriendErrorCode.FRIEND_REQUEST_RECEIVED);
+        }
+
         if (friendshipRepository.existsByUser_IdAndFriend_Id(senderId, receiverId)) {
             throw new GlobalException(FriendErrorCode.FRIEND_ALREADY_EXISTS);
         }

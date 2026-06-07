@@ -157,6 +157,26 @@ class FriendServiceTest {
     }
 
     @Test
+    @DisplayName("상대방에게서 받은 PENDING 요청이 있으면 FRIEND_REQUEST_RECEIVED 예외 발생")
+    void createFriendRequest_reverseRequestExists() {
+        // given
+        FriendRequestReq req = FriendRequestReq.of(2L);
+
+        User sender = mock(User.class);
+        User receiver = mock(User.class);
+        given(userRepository.findById(1L)).willReturn(Optional.of(sender));
+        given(userRepository.findById(2L)).willReturn(Optional.of(receiver));
+        given(friendRequestRepository.existsBySender_IdAndReceiver_IdAndStatus(1L, 2L, FriendRequestStatus.PENDING)).willReturn(false);
+        given(friendRequestRepository.existsBySender_IdAndReceiver_IdAndStatus(2L, 1L, FriendRequestStatus.PENDING)).willReturn(true);
+
+        // when & then
+        assertThatThrownBy(() -> friendService.createFriendRequest(1L, req))
+                .isInstanceOf(GlobalException.class)
+                .satisfies(e -> assertThat(((GlobalException) e).getResultCode())
+                        .isEqualTo(FriendErrorCode.FRIEND_REQUEST_RECEIVED));
+    }
+
+    @Test
     @DisplayName("이미 친구 관계이면 FRIEND_ALREADY_EXISTS 예외 발생")
     void createFriendRequest_alreadyFriends() {
         // given
