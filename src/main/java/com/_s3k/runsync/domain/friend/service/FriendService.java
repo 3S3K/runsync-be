@@ -151,8 +151,7 @@ public class FriendService {
         if (!friendshipRepository.existsByUser_IdAndFriend_Id(userId, friendUserId)) {
             throw new GlobalException(FriendErrorCode.FRIEND_NOT_FOUND);
         }
-        friendshipRepository.deleteByUser_IdAndFriend_Id(userId, friendUserId);
-        friendshipRepository.deleteByUser_IdAndFriend_Id(friendUserId, userId);
+        friendshipRepository.deleteFriendshipBidirectional(userId, friendUserId);
     }
 
     @Transactional(readOnly = true)

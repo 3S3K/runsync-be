@@ -3,6 +3,7 @@ package com._s3k.runsync.domain.friend.repository;
 import com._s3k.runsync.entity.Friendship;
 import com._s3k.runsync.entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -15,5 +16,7 @@ public interface FriendshipRepository extends JpaRepository<Friendship, Long> {
 
     boolean existsByUser_IdAndFriend_Id(Long userId, Long friendId);
 
-    void deleteByUser_IdAndFriend_Id(Long userId, Long friendId);
+    @Modifying
+    @Query("DELETE FROM Friendship f WHERE (f.user.id = :userId AND f.friend.id = :friendId) OR (f.user.id = :friendId AND f.friend.id = :userId)")
+    void deleteFriendshipBidirectional(@Param("userId") Long userId, @Param("friendId") Long friendId);
 }

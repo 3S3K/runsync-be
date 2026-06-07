@@ -41,6 +41,7 @@ import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
 class FriendServiceTest {
@@ -558,7 +559,8 @@ class FriendServiceTest {
         // when
         friendService.deleteFriend(1L, 2L);
 
-        // then (예외 없이 정상 완료)
+        // then
+        verify(friendshipRepository).deleteFriendshipBidirectional(1L, 2L);
     }
 
     @Test
