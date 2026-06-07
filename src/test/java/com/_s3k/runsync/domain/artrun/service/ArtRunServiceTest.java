@@ -7,6 +7,8 @@ import com._s3k.runsync.domain.artrun.dto.request.MeetingPlaceReq;
 import com._s3k.runsync.domain.artrun.dto.response.ArtRunDetailRes;
 import com._s3k.runsync.domain.artrun.dto.response.ArtRunScrollRes;
 import com._s3k.runsync.domain.artrun.dto.response.ArtRunStatusRes;
+import com._s3k.runsync.domain.artrun.event.ArtRunParticipantLeftEvent;
+import com._s3k.runsync.domain.artrun.event.ArtRunSessionClosedEvent;
 import com._s3k.runsync.domain.artrun.exception.ArtRunErrorCode;
 import com._s3k.runsync.domain.artrun.repository.ArtRunParticipantRepository;
 import com._s3k.runsync.domain.artrun.repository.ArtRunSessionRepository;
@@ -31,6 +33,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Pageable;
 import org.springframework.test.util.ReflectionTestUtils;
 
@@ -62,6 +65,9 @@ class ArtRunServiceTest {
 
     @Mock
     private ArtRunParticipantRepository artRunParticipantRepository;
+
+    @Mock
+    private ApplicationEventPublisher eventPublisher;
 
     @Test
     @DisplayName("협동 러닝 세션 생성 성공 - RECRUITING 상태로 저장되고 좌표가 경도/위도 순으로 저장된다")
@@ -263,7 +269,7 @@ class ArtRunServiceTest {
         // given - host id=1, 취소 요청자는 10L
         ArtRunSession session = session(1L, "강아지런");
         ArtRunParticipant participant = participant(10L, "현우", session);
-        given(artRunSessionRepository.findByIdWithHost(1L)).willReturn(Optional.of(session));
+        given(artRunSessionRepository.findByIdWithLock(1L)).willReturn(Optional.of(session));
         given(artRunParticipantRepository.findByArtRunSession_IdAndUser_Id(1L, 10L)).willReturn(Optional.of(participant));
 
         // when
@@ -271,6 +277,7 @@ class ArtRunServiceTest {
 
         // then
         verify(artRunParticipantRepository).delete(participant);
+        verify(eventPublisher).publishEvent(new ArtRunParticipantLeftEvent(1L, 10L));
     }
 
     @Test
@@ -278,7 +285,7 @@ class ArtRunServiceTest {
     void leaveArtRun_hostCannotLeave() {
         // given - host id=1, 취소 요청자도 1L
         ArtRunSession session = session(1L, "강아지런");
-        given(artRunSessionRepository.findByIdWithHost(1L)).willReturn(Optional.of(session));
+        given(artRunSessionRepository.findByIdWithLock(1L)).willReturn(Optional.of(session));
 
         // when & then
         assertThatThrownBy(() -> artRunService.leaveArtRun(1L, 1L))
@@ -293,7 +300,7 @@ class ArtRunServiceTest {
     void leaveArtRun_notParticipant() {
         // given - host id=1, 요청자 10L은 미참가
         ArtRunSession session = session(1L, "강아지런");
-        given(artRunSessionRepository.findByIdWithHost(1L)).willReturn(Optional.of(session));
+        given(artRunSessionRepository.findByIdWithLock(1L)).willReturn(Optional.of(session));
         given(artRunParticipantRepository.findByArtRunSession_IdAndUser_Id(1L, 10L)).willReturn(Optional.empty());
 
         // when & then
@@ -388,6 +395,7 @@ class ArtRunServiceTest {
         // then
         verify(artRunParticipantRepository).deleteByArtRunSession_Id(1L);
         verify(artRunSessionRepository).delete(session);
+        verify(eventPublisher).publishEvent(new ArtRunSessionClosedEvent(1L));
     }
 
     @Test
@@ -433,26 +441,6 @@ class ArtRunServiceTest {
                 .isInstanceOf(GlobalException.class)
                 .satisfies(e -> assertThat(((GlobalException) e).getResultCode())
                         .isEqualTo(ArtRunErrorCode.SESSION_NOT_FOUND));
-    }
-
-    @Test
-    @DisplayName("참가자 여부 확인 - 참가중이면 true")
-    void isParticipant_true() {
-        // given
-        given(artRunParticipantRepository.existsByArtRunSession_IdAndUser_Id(100L, 10L)).willReturn(true);
-
-        // when & then
-        assertThat(artRunService.isParticipant(10L, 100L)).isTrue();
-    }
-
-    @Test
-    @DisplayName("참가자 여부 확인 - 미참가면 false")
-    void isParticipant_false() {
-        // given
-        given(artRunParticipantRepository.existsByArtRunSession_IdAndUser_Id(100L, 10L)).willReturn(false);
-
-        // when & then
-        assertThat(artRunService.isParticipant(10L, 100L)).isFalse();
     }
 
     private ArtRunStatusUpdateReq statusReq(ArtRunStatus status) {
