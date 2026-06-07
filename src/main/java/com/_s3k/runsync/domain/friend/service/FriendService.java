@@ -146,6 +146,15 @@ public class FriendService {
                 .toList();
     }
 
+    @Transactional
+    public void deleteFriend(Long userId, Long friendUserId) {
+        if (!friendshipRepository.existsByUser_IdAndFriend_Id(userId, friendUserId)) {
+            throw new GlobalException(FriendErrorCode.FRIEND_NOT_FOUND);
+        }
+        friendshipRepository.deleteByUser_IdAndFriend_Id(userId, friendUserId);
+        friendshipRepository.deleteByUser_IdAndFriend_Id(friendUserId, userId);
+    }
+
     @Transactional(readOnly = true)
     public List<FriendListRes> getFriendsByUserId(Long userId) {
         List<User> friends = friendshipRepository.findFriendsByUserId(userId);

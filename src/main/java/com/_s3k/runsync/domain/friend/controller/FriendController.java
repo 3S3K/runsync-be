@@ -14,6 +14,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import java.util.List;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -51,6 +52,15 @@ public class FriendController {
             @AuthenticationPrincipal Long userId,
             @PathVariable Long requestId) {
         return CommonResponse.success(friendService.rejectFriendRequest(userId, requestId));
+    }
+
+    @Operation(summary = "친구 삭제", description = "친구 관계 삭제. 로그인 필요")
+    @DeleteMapping("/{friendUserId}")
+    public CommonResponse<Void> deleteFriend(
+            @AuthenticationPrincipal Long userId,
+            @PathVariable Long friendUserId) {
+        friendService.deleteFriend(userId, friendUserId);
+        return CommonResponse.success(null);
     }
 
     @Operation(summary = "친구 목록 조회", description = "친구 목록 및 활동 상태 조회. 로그인 필요")

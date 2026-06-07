@@ -550,6 +550,31 @@ class FriendServiceTest {
     }
 
     @Test
+    @DisplayName("친구 삭제 정상 처리 - 양방향 Friendship 삭제")
+    void deleteFriend_success() {
+        // given
+        given(friendshipRepository.existsByUser_IdAndFriend_Id(1L, 2L)).willReturn(true);
+
+        // when
+        friendService.deleteFriend(1L, 2L);
+
+        // then (예외 없이 정상 완료)
+    }
+
+    @Test
+    @DisplayName("친구 관계가 없으면 FRIEND_NOT_FOUND 예외 발생")
+    void deleteFriend_notFound() {
+        // given
+        given(friendshipRepository.existsByUser_IdAndFriend_Id(1L, 2L)).willReturn(false);
+
+        // when & then
+        assertThatThrownBy(() -> friendService.deleteFriend(1L, 2L))
+                .isInstanceOf(GlobalException.class)
+                .satisfies(e -> assertThat(((GlobalException) e).getResultCode())
+                        .isEqualTo(FriendErrorCode.FRIEND_NOT_FOUND));
+    }
+
+    @Test
     @DisplayName("이미 처리된 친구 요청 거절 시 FRIEND_REQUEST_ALREADY_PROCESSED 예외 발생")
     void rejectFriendRequest_alreadyProcessed() {
         // given
