@@ -33,6 +33,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -62,16 +63,22 @@ public class FriendService {
                 .filter(u -> !Boolean.TRUE.equals(u.getIsDeleted()))
                 .orElseThrow(() -> new GlobalException(UserErrorCode.USER_NOT_FOUND));
 
-        if (friendRequestRepository.existsBySender_IdAndReceiver_IdAndStatus(senderId, receiverId, FriendRequestStatus.PENDING)) {
-            throw new GlobalException(FriendErrorCode.FRIEND_REQUEST_ALREADY_SENT);
-        }
-
         if (friendRequestRepository.existsBySender_IdAndReceiver_IdAndStatus(receiverId, senderId, FriendRequestStatus.PENDING)) {
             throw new GlobalException(FriendErrorCode.FRIEND_REQUEST_RECEIVED);
         }
 
         if (friendshipRepository.existsByUser_IdAndFriend_Id(senderId, receiverId)) {
             throw new GlobalException(FriendErrorCode.FRIEND_ALREADY_EXISTS);
+        }
+
+        Optional<FriendRequest> existing = friendRequestRepository.findBySender_IdAndReceiver_Id(senderId, receiverId);
+        if (existing.isPresent()) {
+            FriendRequest existingRequest = existing.get();
+            if (existingRequest.getStatus() == FriendRequestStatus.PENDING) {
+                throw new GlobalException(FriendErrorCode.FRIEND_REQUEST_ALREADY_SENT);
+            }
+            existingRequest.resend();
+            return FriendRequestRes.of(existingRequest);
         }
 
         try {
@@ -84,8 +91,7 @@ public class FriendService {
 
     @Transactional
     public FriendAcceptRes acceptFriendRequest(Long userId, Long requestId) {
-        FriendRequest friendRequest = friendRequestRepository.findById(requestId)
-                .filter(r -> r.getReceiver().getId().equals(userId))
+        FriendRequest friendRequest = friendRequestRepository.findByIdAndReceiver_Id(requestId, userId)
                 .orElseThrow(() -> new GlobalException(FriendErrorCode.FRIEND_REQUEST_NOT_FOUND));
 
         if (friendRequest.getStatus() != FriendRequestStatus.PENDING) {
@@ -113,8 +119,7 @@ public class FriendService {
 
     @Transactional
     public FriendRejectRes rejectFriendRequest(Long userId, Long requestId) {
-        FriendRequest friendRequest = friendRequestRepository.findById(requestId)
-                .filter(r -> r.getReceiver().getId().equals(userId))
+        FriendRequest friendRequest = friendRequestRepository.findByIdAndReceiver_Id(requestId, userId)
                 .orElseThrow(() -> new GlobalException(FriendErrorCode.FRIEND_REQUEST_NOT_FOUND));
 
         if (friendRequest.getStatus() != FriendRequestStatus.PENDING) {
