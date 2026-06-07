@@ -91,8 +91,17 @@ public class FriendService {
 
         User sender = friendRequest.getSender();
         User receiver = friendRequest.getReceiver();
-        friendshipRepository.save(Friendship.of(receiver, sender));
-        friendshipRepository.save(Friendship.of(sender, receiver));
+
+        if (friendshipRepository.existsByUser_IdAndFriend_Id(sender.getId(), receiver.getId())) {
+            throw new GlobalException(FriendErrorCode.FRIEND_ALREADY_EXISTS);
+        }
+
+        try {
+            friendshipRepository.save(Friendship.of(receiver, sender));
+            friendshipRepository.save(Friendship.of(sender, receiver));
+        } catch (DataIntegrityViolationException e) {
+            throw new GlobalException(FriendErrorCode.FRIEND_ALREADY_EXISTS);
+        }
 
         return FriendAcceptRes.of(friendRequest);
     }
