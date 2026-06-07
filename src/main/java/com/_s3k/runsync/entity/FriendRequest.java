@@ -40,4 +40,8 @@ public class FriendRequest extends BaseEntity {
                 .status(FriendRequestStatus.PENDING)
                 .build();
     }
+
+    public void accept() {
+        this.status = FriendRequestStatus.ACCEPTED;
+    }
 }

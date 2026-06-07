@@ -6,8 +6,13 @@ import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface FriendRequestRepository extends JpaRepository<FriendRequest, Long> {
+    @Override
+    @EntityGraph(attributePaths = {"sender", "receiver"})
+    Optional<FriendRequest> findById(Long id);
+
     boolean existsBySender_IdAndReceiver_IdAndStatus(Long senderId, Long receiverId, FriendRequestStatus status);
 
     @EntityGraph(attributePaths = {"sender"})
