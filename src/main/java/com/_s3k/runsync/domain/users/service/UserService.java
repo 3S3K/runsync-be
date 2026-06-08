@@ -113,7 +113,8 @@ public class UserService {
 
     @Transactional(readOnly = true)
     public UserSearchScrollRes searchUsersByNickname(Long userId, String nickname, Long cursor, int size) {
-        List<User> users = userRepository.searchByNickname(userId, nickname, cursor, PageRequest.of(0, size + 1));
+        String escapedNickname = nickname.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
+        List<User> users = userRepository.searchByNickname(userId, escapedNickname, cursor, PageRequest.of(0, size + 1));
         if (users.isEmpty()) {
             return UserSearchScrollRes.of(ScrollPaginationCollection.of(List.of(), size));
         }

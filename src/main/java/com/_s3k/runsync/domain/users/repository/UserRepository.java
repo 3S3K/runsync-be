@@ -16,7 +16,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
 	boolean existsByNicknameAndIdNot(String nickname, Long id);
 
 	@Query("SELECT u FROM User u WHERE u.id <> :userId AND u.isDeleted = false " +
-			"AND LOWER(u.nickname) LIKE LOWER(CONCAT('%', :nickname, '%')) " +
+			"AND LOWER(u.nickname) LIKE LOWER(CONCAT('%', :nickname, '%')) ESCAPE '\\' " +
 			"AND (:cursor IS NULL OR u.id > :cursor) ORDER BY u.id ASC")
 	List<User> searchByNickname(@Param("userId") Long userId, @Param("nickname") String nickname,
 								@Param("cursor") Long cursor, Pageable pageable);
