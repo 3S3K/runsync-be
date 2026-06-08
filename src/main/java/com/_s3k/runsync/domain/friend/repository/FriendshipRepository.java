@@ -16,6 +16,9 @@ public interface FriendshipRepository extends JpaRepository<Friendship, Long> {
 
     boolean existsByUser_IdAndFriend_Id(Long userId, Long friendId);
 
+    @Query("SELECT f.friend.id FROM Friendship f WHERE f.user.id = :userId AND f.friend.id IN :targetIds")
+    List<Long> findFriendIdsByUserIdAndFriendIdIn(@Param("userId") Long userId, @Param("targetIds") List<Long> targetIds);
+
     @Modifying
     @Query("DELETE FROM Friendship f WHERE (f.user.id = :userId AND f.friend.id = :friendId) OR (f.user.id = :friendId AND f.friend.id = :userId)")
     void deleteFriendshipBidirectional(@Param("userId") Long userId, @Param("friendId") Long friendId);
