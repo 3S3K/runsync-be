@@ -98,12 +98,20 @@ public class WebSocketAuthInterceptor implements ChannelInterceptor {
                 }
 
                 // 구독 시 검증한 참가 정보를 세션에 캐싱 → 발행 시 DB 재조회 없이 활용
-                artRunSubscriptions(accessor).put(accessor.getSubscriptionId(), sessionId);
+                String subscriptionId = accessor.getSubscriptionId();
+                if (subscriptionId == null) {
+                    throw new IllegalArgumentException("구독 ID(subscriptionId)가 누락되었습니다.");
+                }
+                artRunSubscriptions(accessor).put(subscriptionId, sessionId);
             }
         }
 
         if (StompCommand.UNSUBSCRIBE.equals(accessor.getCommand())) {
-            artRunSubscriptions(accessor).remove(accessor.getSubscriptionId());
+            String subscriptionId = accessor.getSubscriptionId();
+            if (subscriptionId == null) {
+                throw new IllegalArgumentException("구독 ID(subscriptionId)가 누락되었습니다.");
+            }
+            artRunSubscriptions(accessor).remove(subscriptionId);
         }
 
         return message;
