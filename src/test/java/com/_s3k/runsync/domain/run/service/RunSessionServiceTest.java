@@ -2,6 +2,7 @@ package com._s3k.runsync.domain.run.service;
 
 import com._s3k.runsync.domain.artrun.exception.ArtRunErrorCode;
 import com._s3k.runsync.domain.artrun.repository.ArtRunParticipantRepository;
+import com._s3k.runsync.domain.artrun.repository.ArtRunSessionRepository;
 import com._s3k.runsync.domain.location.service.LocationService;
 import com._s3k.runsync.domain.run.dto.request.LocationUpdateReq;
 import com._s3k.runsync.domain.run.dto.request.RunRecordDetailReq;
@@ -13,6 +14,7 @@ import com._s3k.runsync.domain.run.repository.RunSessionRedisRepository;
 import com._s3k.runsync.domain.run.repository.RunningSessionRepository;
 import com._s3k.runsync.domain.users.exception.UserErrorCode;
 import com._s3k.runsync.domain.users.repository.UserRepository;
+import com._s3k.runsync.entity.ArtRunSession;
 import com._s3k.runsync.entity.RunRecord;
 import com._s3k.runsync.entity.RunningSession;
 import com._s3k.runsync.entity.User;
@@ -67,6 +69,9 @@ class RunSessionServiceTest {
 
     @Mock
     private ArtRunParticipantRepository artRunParticipantRepository;
+
+    @Mock
+    private ArtRunSessionRepository artRunSessionRepository;
 
     @Spy
     private ObjectMapper objectMapper = new ObjectMapper();
@@ -142,8 +147,10 @@ class RunSessionServiceTest {
         ReflectionTestUtils.setField(request, "artRunSessionId", artRunSessionId);
 
         User user = User.createTmpUser(Provider.KAKAO, "kakaoId", "nickname", null);
+        ArtRunSession artRunSession = mock(ArtRunSession.class);
         given(userRepository.findById(userId)).willReturn(Optional.of(user));
         given(runningSessionRepository.existsByUserIdAndStatus(userId, RunningSessionStatus.ACTIVE)).willReturn(false);
+        given(artRunSessionRepository.findById(artRunSessionId)).willReturn(Optional.of(artRunSession));
         given(artRunParticipantRepository.existsByArtRunSession_IdAndUser_Id(artRunSessionId, userId)).willReturn(true);
         given(runningSessionRepository.save(any(RunningSession.class))).willAnswer(i -> i.getArgument(0));
 
@@ -154,6 +161,7 @@ class RunSessionServiceTest {
         ArgumentCaptor<RunningSession> captor = ArgumentCaptor.forClass(RunningSession.class);
         verify(runningSessionRepository).save(captor.capture());
         assertThat(captor.getValue().getArtRunSessionId()).isEqualTo(artRunSessionId);
+        verify(artRunSession).validateInProgress();
     }
 
     @Test
@@ -169,6 +177,7 @@ class RunSessionServiceTest {
         User user = User.createTmpUser(Provider.KAKAO, "kakaoId", "nickname", null);
         given(userRepository.findById(userId)).willReturn(Optional.of(user));
         given(runningSessionRepository.existsByUserIdAndStatus(userId, RunningSessionStatus.ACTIVE)).willReturn(false);
+        given(artRunSessionRepository.findById(artRunSessionId)).willReturn(Optional.of(mock(ArtRunSession.class)));
         given(artRunParticipantRepository.existsByArtRunSession_IdAndUser_Id(artRunSessionId, userId)).willReturn(false);
 
         // when & then
@@ -176,6 +185,57 @@ class RunSessionServiceTest {
                 .isInstanceOf(GlobalException.class)
                 .satisfies(e -> assertThat(((GlobalException) e).getResultCode())
                         .isEqualTo(ArtRunErrorCode.NOT_PARTICIPANT));
+
+        verify(runningSessionRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 협동 러닝 세션 ID를 보내면 예외 발생")
+    void createRunSession_artRunSessionNotFound() {
+        // given
+        Long userId = 1L;
+        Long artRunSessionId = 100L;
+        RunSessionStartReq request = new RunSessionStartReq();
+        ReflectionTestUtils.setField(request, "startTime", LocalDateTime.now());
+        ReflectionTestUtils.setField(request, "artRunSessionId", artRunSessionId);
+
+        User user = User.createTmpUser(Provider.KAKAO, "kakaoId", "nickname", null);
+        given(userRepository.findById(userId)).willReturn(Optional.of(user));
+        given(runningSessionRepository.existsByUserIdAndStatus(userId, RunningSessionStatus.ACTIVE)).willReturn(false);
+        given(artRunSessionRepository.findById(artRunSessionId)).willReturn(Optional.empty());
+
+        // when & then
+        assertThatThrownBy(() -> runSessionService.createRunSession(userId, request))
+                .isInstanceOf(GlobalException.class)
+                .satisfies(e -> assertThat(((GlobalException) e).getResultCode())
+                        .isEqualTo(ArtRunErrorCode.SESSION_NOT_FOUND));
+
+        verify(runningSessionRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("진행 중이 아닌 협동 러닝에 링크 시도 시 예외 발생")
+    void createRunSession_artRunNotInProgress() {
+        // given
+        Long userId = 1L;
+        Long artRunSessionId = 100L;
+        RunSessionStartReq request = new RunSessionStartReq();
+        ReflectionTestUtils.setField(request, "startTime", LocalDateTime.now());
+        ReflectionTestUtils.setField(request, "artRunSessionId", artRunSessionId);
+
+        User user = User.createTmpUser(Provider.KAKAO, "kakaoId", "nickname", null);
+        ArtRunSession artRunSession = mock(ArtRunSession.class);
+        given(userRepository.findById(userId)).willReturn(Optional.of(user));
+        given(runningSessionRepository.existsByUserIdAndStatus(userId, RunningSessionStatus.ACTIVE)).willReturn(false);
+        given(artRunSessionRepository.findById(artRunSessionId)).willReturn(Optional.of(artRunSession));
+        given(artRunParticipantRepository.existsByArtRunSession_IdAndUser_Id(artRunSessionId, userId)).willReturn(true);
+        doThrow(new GlobalException(ArtRunErrorCode.ARTRUN_NOT_IN_PROGRESS)).when(artRunSession).validateInProgress();
+
+        // when & then
+        assertThatThrownBy(() -> runSessionService.createRunSession(userId, request))
+                .isInstanceOf(GlobalException.class)
+                .satisfies(e -> assertThat(((GlobalException) e).getResultCode())
+                        .isEqualTo(ArtRunErrorCode.ARTRUN_NOT_IN_PROGRESS));
 
         verify(runningSessionRepository, never()).save(any());
     }

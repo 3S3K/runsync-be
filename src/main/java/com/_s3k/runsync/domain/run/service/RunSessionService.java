@@ -2,6 +2,7 @@ package com._s3k.runsync.domain.run.service;
 
 import com._s3k.runsync.domain.artrun.exception.ArtRunErrorCode;
 import com._s3k.runsync.domain.artrun.repository.ArtRunParticipantRepository;
+import com._s3k.runsync.domain.artrun.repository.ArtRunSessionRepository;
 import com._s3k.runsync.domain.location.service.LocationService;
 import com._s3k.runsync.domain.run.dto.request.LocationUpdateReq;
 import com._s3k.runsync.domain.run.dto.request.RunRecordDetailReq;
@@ -16,6 +17,7 @@ import com._s3k.runsync.domain.run.repository.RunSessionRedisRepository;
 import com._s3k.runsync.domain.run.repository.RunningSessionRepository;
 import com._s3k.runsync.domain.users.exception.UserErrorCode;
 import com._s3k.runsync.domain.users.repository.UserRepository;
+import com._s3k.runsync.entity.ArtRunSession;
 import com._s3k.runsync.entity.RunPath;
 import com._s3k.runsync.entity.RunRecord;
 import com._s3k.runsync.entity.RunningSession;
@@ -50,6 +52,7 @@ public class RunSessionService {
     private final RunSessionRedisRepository runSessionRedisRepository;
     private final LocationService locationService;
     private final ArtRunParticipantRepository artRunParticipantRepository;
+    private final ArtRunSessionRepository artRunSessionRepository;
     private final ObjectMapper objectMapper;
 
 
@@ -64,9 +67,13 @@ public class RunSessionService {
         }
 
         Long artRunSessionId = request.getArtRunSessionId();
-        if (artRunSessionId != null
-                && !artRunParticipantRepository.existsByArtRunSession_IdAndUser_Id(artRunSessionId, userId)) {
-            throw new GlobalException(ArtRunErrorCode.NOT_PARTICIPANT);
+        if (artRunSessionId != null) {
+            ArtRunSession artRunSession = artRunSessionRepository.findById(artRunSessionId)
+                    .orElseThrow(() -> new GlobalException(ArtRunErrorCode.SESSION_NOT_FOUND));
+            if (!artRunParticipantRepository.existsByArtRunSession_IdAndUser_Id(artRunSessionId, userId)) {
+                throw new GlobalException(ArtRunErrorCode.NOT_PARTICIPANT);
+            }
+            artRunSession.validateInProgress();
         }
 
         try {

@@ -18,7 +18,8 @@ import java.time.LocalDateTime;
 import java.util.Objects;
 
 @Entity
-@Table(name = "running_session")
+@Table(name = "running_session",
+        indexes = @Index(name = "idx_running_session_art_run_session_id", columnList = "art_run_session_id"))
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class RunningSession extends BaseEntity {
