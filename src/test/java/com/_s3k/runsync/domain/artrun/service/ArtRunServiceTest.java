@@ -5,6 +5,8 @@ import com._s3k.runsync.domain.artrun.dto.request.ArtRunStatusUpdateReq;
 import com._s3k.runsync.domain.artrun.dto.request.CoordinateReq;
 import com._s3k.runsync.domain.artrun.dto.request.MeetingPlaceReq;
 import com._s3k.runsync.domain.artrun.dto.response.ArtRunDetailRes;
+import com._s3k.runsync.domain.artrun.dto.response.ArtRunResultParticipantRes;
+import com._s3k.runsync.domain.artrun.dto.response.ArtRunResultRes;
 import com._s3k.runsync.domain.artrun.dto.response.ArtRunScrollRes;
 import com._s3k.runsync.domain.artrun.dto.response.ArtRunStatusRes;
 import com._s3k.runsync.domain.artrun.event.ArtRunParticipantLeftEvent;
@@ -13,10 +15,13 @@ import com._s3k.runsync.domain.artrun.exception.ArtRunErrorCode;
 import com._s3k.runsync.domain.artrun.repository.ArtRunParticipantRepository;
 import com._s3k.runsync.domain.artrun.repository.ArtRunSessionRepository;
 import com._s3k.runsync.domain.artrun.repository.ParticipantCountProjection;
+import com._s3k.runsync.domain.run.repository.RunRecordRepository;
 import com._s3k.runsync.domain.users.exception.UserErrorCode;
 import com._s3k.runsync.domain.users.repository.UserRepository;
 import com._s3k.runsync.entity.ArtRunParticipant;
 import com._s3k.runsync.entity.ArtRunSession;
+import com._s3k.runsync.entity.RunPath;
+import com._s3k.runsync.entity.RunRecord;
 import com._s3k.runsync.entity.User;
 import com._s3k.runsync.entity.enums.ArtRunStatus;
 import com._s3k.runsync.entity.enums.Provider;
@@ -37,6 +42,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Pageable;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -65,6 +71,9 @@ class ArtRunServiceTest {
 
     @Mock
     private ArtRunParticipantRepository artRunParticipantRepository;
+
+    @Mock
+    private RunRecordRepository runRecordRepository;
 
     @Mock
     private ApplicationEventPublisher eventPublisher;
@@ -443,6 +452,92 @@ class ArtRunServiceTest {
                         .isEqualTo(ArtRunErrorCode.SESSION_NOT_FOUND));
     }
 
+    @Test
+    @DisplayName("협동 러닝 결과 조회 성공 - 뛴 참가자는 기록, 안 뛴 참가자는 빈 경로(paths=[])로 포함된다")
+    void getArtRunResult_success() {
+        // given
+        Long sessionId = 100L;
+        Long runnerId = 10L;
+        Long nonRunnerId = 11L;
+        ArtRunSession session = session(sessionId, "강아지런");
+        ReflectionTestUtils.setField(session, "status", ArtRunStatus.COMPLETED);
+
+        given(artRunSessionRepository.findByIdWithHost(sessionId)).willReturn(Optional.of(session));
+        given(artRunParticipantRepository.existsByArtRunSession_IdAndUser_Id(sessionId, runnerId)).willReturn(true);
+        given(artRunParticipantRepository.findByArtRunSessionIdWithUser(sessionId))
+                .willReturn(List.of(participant(runnerId, "러너", session), participant(nonRunnerId, "구경꾼", session)));
+        given(runRecordRepository.findByArtRunSessionIdWithPaths(sessionId))
+                .willReturn(List.of(runRecord(runnerId, 2.59, 1048)));
+
+        // when
+        ArtRunResultRes result = artRunService.getArtRunResultBySessionId(runnerId, sessionId);
+
+        // then
+        assertThat(result.getSessionId()).isEqualTo(sessionId);
+        assertThat(result.getStatus()).isEqualTo(ArtRunStatus.COMPLETED);
+        assertThat(result.getDesignCoordinates()).hasSize(2);
+        assertThat(result.getParticipants()).hasSize(2);
+
+        ArtRunResultParticipantRes runner = result.getParticipants().stream()
+                .filter(p -> p.getUserId().equals(runnerId)).findFirst().orElseThrow();
+        assertThat(runner.getDistance()).isEqualTo(2.59);
+        assertThat(runner.getDurationSeconds()).isEqualTo(1048);
+        assertThat(runner.getPaths()).hasSize(1);
+
+        ArtRunResultParticipantRes nonRunner = result.getParticipants().stream()
+                .filter(p -> p.getUserId().equals(nonRunnerId)).findFirst().orElseThrow();
+        assertThat(nonRunner.getDistance()).isEqualTo(0.0);
+        assertThat(nonRunner.getDurationSeconds()).isEqualTo(0);
+        assertThat(nonRunner.getPaths()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("호스트는 참가자가 아니어도 결과를 조회할 수 있다")
+    void getArtRunResult_hostCanView() {
+        // given
+        Long sessionId = 100L;
+        ArtRunSession session = session(sessionId, "강아지런"); // host id == 100
+        given(artRunSessionRepository.findByIdWithHost(sessionId)).willReturn(Optional.of(session));
+        given(artRunParticipantRepository.findByArtRunSessionIdWithUser(sessionId)).willReturn(List.of());
+        given(runRecordRepository.findByArtRunSessionIdWithPaths(sessionId)).willReturn(List.of());
+
+        // when
+        ArtRunResultRes result = artRunService.getArtRunResultBySessionId(100L, sessionId);
+
+        // then
+        assertThat(result.getParticipants()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("참가자도 호스트도 아니면 결과 조회 시 예외 발생")
+    void getArtRunResult_accessDenied() {
+        // given
+        Long sessionId = 100L;
+        Long strangerId = 99L;
+        ArtRunSession session = session(sessionId, "강아지런"); // host id == 100
+        given(artRunSessionRepository.findByIdWithHost(sessionId)).willReturn(Optional.of(session));
+        given(artRunParticipantRepository.existsByArtRunSession_IdAndUser_Id(sessionId, strangerId)).willReturn(false);
+
+        // when & then
+        assertThatThrownBy(() -> artRunService.getArtRunResultBySessionId(strangerId, sessionId))
+                .isInstanceOf(GlobalException.class)
+                .satisfies(e -> assertThat(((GlobalException) e).getResultCode())
+                        .isEqualTo(ArtRunErrorCode.RESULT_ACCESS_DENIED));
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 세션 결과 조회 시 예외 발생")
+    void getArtRunResult_sessionNotFound() {
+        // given
+        given(artRunSessionRepository.findByIdWithHost(1L)).willReturn(Optional.empty());
+
+        // when & then
+        assertThatThrownBy(() -> artRunService.getArtRunResultBySessionId(1L, 1L))
+                .isInstanceOf(GlobalException.class)
+                .satisfies(e -> assertThat(((GlobalException) e).getResultCode())
+                        .isEqualTo(ArtRunErrorCode.SESSION_NOT_FOUND));
+    }
+
     private ArtRunStatusUpdateReq statusReq(ArtRunStatus status) {
         ArtRunStatusUpdateReq request = new ArtRunStatusUpdateReq();
         ReflectionTestUtils.setField(request, "status", status);
@@ -468,6 +563,16 @@ class ArtRunServiceTest {
         User user = User.createTmpUser(Provider.KAKAO, "kakao" + userId, nickname, null);
         ReflectionTestUtils.setField(user, "id", userId);
         return ArtRunParticipant.of(session, user);
+    }
+
+    private RunRecord runRecord(Long userId, double distance, int durationSeconds) {
+        User user = User.createTmpUser(Provider.KAKAO, "kakao" + userId, "nick" + userId, null);
+        ReflectionTestUtils.setField(user, "id", userId);
+        RunRecord record = RunRecord.of(user, null, durationSeconds, LocalDateTime.now(),
+                BigDecimal.valueOf(distance), null, null, null, null, null);
+        ReflectionTestUtils.setField(record, "userId", userId);
+        record.addPaths(List.of(RunPath.of(record, 37.5, 127.0, 1, LocalDateTime.now(), null, null)));
+        return record;
     }
 
     private ParticipantCountProjection countProjection(Long sessionId, Long count) {

@@ -7,6 +7,8 @@ import com._s3k.runsync.domain.artrun.dto.request.MeetingPlaceReq;
 import com._s3k.runsync.domain.artrun.dto.response.ArtRunCreateRes;
 import com._s3k.runsync.domain.artrun.dto.response.ArtRunDetailRes;
 import com._s3k.runsync.domain.artrun.dto.response.ArtRunRes;
+import com._s3k.runsync.domain.artrun.dto.response.ArtRunResultParticipantRes;
+import com._s3k.runsync.domain.artrun.dto.response.ArtRunResultRes;
 import com._s3k.runsync.domain.artrun.dto.response.ArtRunScrollRes;
 import com._s3k.runsync.domain.artrun.dto.response.ArtRunStatusRes;
 import com._s3k.runsync.domain.artrun.dto.response.ParticipantRes;
@@ -16,10 +18,12 @@ import com._s3k.runsync.domain.artrun.exception.ArtRunErrorCode;
 import com._s3k.runsync.domain.artrun.repository.ArtRunParticipantRepository;
 import com._s3k.runsync.domain.artrun.repository.ArtRunSessionRepository;
 import com._s3k.runsync.domain.artrun.repository.ParticipantCountProjection;
+import com._s3k.runsync.domain.run.repository.RunRecordRepository;
 import com._s3k.runsync.domain.users.exception.UserErrorCode;
 import com._s3k.runsync.domain.users.repository.UserRepository;
 import com._s3k.runsync.entity.ArtRunParticipant;
 import com._s3k.runsync.entity.ArtRunSession;
+import com._s3k.runsync.entity.RunRecord;
 import com._s3k.runsync.entity.User;
 import com._s3k.runsync.entity.enums.ArtRunStatus;
 import com._s3k.runsync.global.common.ScrollPaginationCollection;
@@ -37,6 +41,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
@@ -48,6 +53,7 @@ public class ArtRunService {
     private final UserRepository userRepository;
     private final ArtRunSessionRepository artRunSessionRepository;
     private final ArtRunParticipantRepository artRunParticipantRepository;
+    private final RunRecordRepository runRecordRepository;
     private final ApplicationEventPublisher eventPublisher;
 
     @Transactional
@@ -95,6 +101,26 @@ public class ArtRunService {
                 .toList();
 
         return ArtRunDetailRes.of(session, participants.size(), participants);
+    }
+
+    @Transactional(readOnly = true)
+    public ArtRunResultRes getArtRunResultBySessionId(Long userId, Long sessionId) {
+        ArtRunSession session = artRunSessionRepository.findByIdWithHost(sessionId)
+                .orElseThrow(() -> new GlobalException(ArtRunErrorCode.SESSION_NOT_FOUND));
+
+        if (!session.isHost(userId)
+                && !artRunParticipantRepository.existsByArtRunSession_IdAndUser_Id(sessionId, userId)) {
+            throw new GlobalException(ArtRunErrorCode.RESULT_ACCESS_DENIED);
+        }
+
+        Map<Long, RunRecord> recordByUserId = runRecordRepository.findByArtRunSessionIdWithPaths(sessionId).stream()
+                .collect(Collectors.toMap(RunRecord::getUserId, Function.identity(), (a, b) -> a));
+
+        List<ArtRunResultParticipantRes> participants = artRunParticipantRepository.findByArtRunSessionIdWithUser(sessionId).stream()
+                .map(p -> ArtRunResultParticipantRes.of(p, recordByUserId.get(p.getUser().getId())))
+                .toList();
+
+        return ArtRunResultRes.of(session, participants);
     }
 
     @Transactional
