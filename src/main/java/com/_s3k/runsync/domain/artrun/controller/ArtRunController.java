@@ -4,6 +4,7 @@ import com._s3k.runsync.domain.artrun.dto.request.ArtRunCreateReq;
 import com._s3k.runsync.domain.artrun.dto.request.ArtRunStatusUpdateReq;
 import com._s3k.runsync.domain.artrun.dto.response.ArtRunCreateRes;
 import com._s3k.runsync.domain.artrun.dto.response.ArtRunDetailRes;
+import com._s3k.runsync.domain.artrun.dto.response.ArtRunResultRes;
 import com._s3k.runsync.domain.artrun.dto.response.ArtRunScrollRes;
 import com._s3k.runsync.domain.artrun.dto.response.ArtRunStatusRes;
 import com._s3k.runsync.domain.artrun.service.ArtRunService;
@@ -59,6 +60,15 @@ public class ArtRunController {
             @PathVariable Long sessionId
     ) {
         return CommonResponse.success(artRunService.getArtRunById(sessionId));
+    }
+
+    @GetMapping("/{sessionId}/result")
+    @Operation(summary = "협동 러닝 결과 조회", description = "종료된 협동 러닝의 참가자별 기록(경로/거리/시간)과 도안을 조회합니다. 참가자/호스트만 가능. 로그인 필요")
+    public CommonResponse<ArtRunResultRes> getArtRunResult(
+            @AuthenticationPrincipal Long userId,
+            @PathVariable Long sessionId
+    ) {
+        return CommonResponse.success(artRunService.getArtRunResultBySessionId(userId, sessionId));
     }
 
     @PostMapping("/{sessionId}/participants")
