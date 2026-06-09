@@ -113,6 +113,8 @@ public class ArtRunService {
             throw new GlobalException(ArtRunErrorCode.RESULT_ACCESS_DENIED);
         }
 
+        session.validateCompleted();
+
         Map<Long, RunRecord> recordByUserId = runRecordRepository.findByArtRunSessionIdWithPaths(sessionId).stream()
                 .collect(Collectors.toMap(RunRecord::getUserId, Function.identity(), (a, b) -> a));
 

@@ -18,7 +18,8 @@ public enum ArtRunErrorCode implements ResultCode {
     NOT_HOST(HttpStatus.FORBIDDEN, 5007, "호스트만 가능한 작업입니다."),
     INVALID_STATUS_TRANSITION(HttpStatus.CONFLICT, 5008, "잘못된 상태 변경입니다."),
     ARTRUN_NOT_IN_PROGRESS(HttpStatus.CONFLICT, 5009, "진행 중인 협동 러닝이 아닙니다."),
-    RESULT_ACCESS_DENIED(HttpStatus.FORBIDDEN, 5010, "참가자만 결과를 조회할 수 있습니다.");
+    RESULT_ACCESS_DENIED(HttpStatus.FORBIDDEN, 5010, "참가자만 결과를 조회할 수 있습니다."),
+    ARTRUN_NOT_COMPLETED(HttpStatus.CONFLICT, 5011, "종료된 협동 러닝만 결과를 조회할 수 있습니다.");
 
     private final HttpStatus status;
     private final int code;

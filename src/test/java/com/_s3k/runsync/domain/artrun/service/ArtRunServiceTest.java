@@ -497,6 +497,7 @@ class ArtRunServiceTest {
         // given
         Long sessionId = 100L;
         ArtRunSession session = session(sessionId, "강아지런"); // host id == 100
+        ReflectionTestUtils.setField(session, "status", ArtRunStatus.COMPLETED);
         given(artRunSessionRepository.findByIdWithHost(sessionId)).willReturn(Optional.of(session));
         given(artRunParticipantRepository.findByArtRunSessionIdWithUser(sessionId)).willReturn(List.of());
         given(runRecordRepository.findByArtRunSessionIdWithPaths(sessionId)).willReturn(List.of());
@@ -506,6 +507,22 @@ class ArtRunServiceTest {
 
         // then
         assertThat(result.getParticipants()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("종료되지 않은(IN_PROGRESS) 세션 결과 조회 시 예외 발생")
+    void getArtRunResult_notCompleted() {
+        // given
+        Long sessionId = 100L;
+        ArtRunSession session = session(sessionId, "강아지런"); // host id == 100
+        ReflectionTestUtils.setField(session, "status", ArtRunStatus.IN_PROGRESS);
+        given(artRunSessionRepository.findByIdWithHost(sessionId)).willReturn(Optional.of(session));
+
+        // when & then (호스트라 권한은 통과, 상태 검증에서 막힘)
+        assertThatThrownBy(() -> artRunService.getArtRunResultBySessionId(100L, sessionId))
+                .isInstanceOf(GlobalException.class)
+                .satisfies(e -> assertThat(((GlobalException) e).getResultCode())
+                        .isEqualTo(ArtRunErrorCode.ARTRUN_NOT_COMPLETED));
     }
 
     @Test

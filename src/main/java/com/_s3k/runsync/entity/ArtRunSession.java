@@ -108,4 +108,10 @@ public class ArtRunSession extends BaseEntity {
             throw new GlobalException(ArtRunErrorCode.ARTRUN_NOT_IN_PROGRESS);
         }
     }
+
+    public void validateCompleted() {
+        if (this.status != ArtRunStatus.COMPLETED) {
+            throw new GlobalException(ArtRunErrorCode.ARTRUN_NOT_COMPLETED);
+        }
+    }
 }
