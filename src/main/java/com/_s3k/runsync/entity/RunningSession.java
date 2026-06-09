@@ -18,7 +18,8 @@ import java.time.LocalDateTime;
 import java.util.Objects;
 
 @Entity
-@Table(name = "running_session")
+@Table(name = "running_session",
+        indexes = @Index(name = "idx_running_session_art_run_session_id", columnList = "art_run_session_id"))
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class RunningSession extends BaseEntity {
@@ -48,21 +49,30 @@ public class RunningSession extends BaseEntity {
     @Column(name = "current_duration_time")
     private Integer currentDurationTime;
 
+    @Column(name = "art_run_session_id")
+    private Long artRunSessionId;
+
     @Column(name = "user_id", insertable = false, updatable = false)
     private Long userId;
 
     @Builder(access = AccessLevel.PRIVATE)
-    private RunningSession(User user, LocalDateTime startTime) {
+    private RunningSession(User user, LocalDateTime startTime, Long artRunSessionId) {
         this.user = user;
         this.startTime = startTime;
         this.status = RunningSessionStatus.ACTIVE;
         this.totalDistance = BigDecimal.ZERO;
+        this.artRunSessionId = artRunSessionId;
     }
 
     public static RunningSession of(User user, LocalDateTime startTime) {
+        return of(user, startTime, null);
+    }
+
+    public static RunningSession of(User user, LocalDateTime startTime, Long artRunSessionId) {
         return RunningSession.builder()
                 .user(user)
                 .startTime(startTime)
+                .artRunSessionId(artRunSessionId)
                 .build();
     }
 

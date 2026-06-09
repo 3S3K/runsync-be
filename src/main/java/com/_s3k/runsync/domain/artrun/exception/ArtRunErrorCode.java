@@ -16,7 +16,8 @@ public enum ArtRunErrorCode implements ResultCode {
     NOT_PARTICIPANT(HttpStatus.NOT_FOUND, 5005, "참가 중인 세션이 아닙니다."),
     HOST_CANNOT_LEAVE(HttpStatus.CONFLICT, 5006, "호스트는 참가를 취소할 수 없습니다."),
     NOT_HOST(HttpStatus.FORBIDDEN, 5007, "호스트만 가능한 작업입니다."),
-    INVALID_STATUS_TRANSITION(HttpStatus.CONFLICT, 5008, "잘못된 상태 변경입니다.");
+    INVALID_STATUS_TRANSITION(HttpStatus.CONFLICT, 5008, "잘못된 상태 변경입니다."),
+    ARTRUN_NOT_IN_PROGRESS(HttpStatus.CONFLICT, 5009, "진행 중인 협동 러닝이 아닙니다.");
 
     private final HttpStatus status;
     private final int code;
