@@ -1,5 +1,7 @@
 package com._s3k.runsync.domain.run.service;
 
+import com._s3k.runsync.domain.artrun.exception.ArtRunErrorCode;
+import com._s3k.runsync.domain.artrun.repository.ArtRunParticipantRepository;
 import com._s3k.runsync.domain.location.service.LocationService;
 import com._s3k.runsync.domain.run.dto.request.LocationUpdateReq;
 import com._s3k.runsync.domain.run.dto.request.RunRecordDetailReq;
@@ -21,6 +23,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
@@ -61,6 +64,9 @@ class RunSessionServiceTest {
 
     @Mock
     private LocationService locationService;
+
+    @Mock
+    private ArtRunParticipantRepository artRunParticipantRepository;
 
     @Spy
     private ObjectMapper objectMapper = new ObjectMapper();
@@ -121,6 +127,55 @@ class RunSessionServiceTest {
                 .isInstanceOf(GlobalException.class)
                 .satisfies(e -> assertThat(((GlobalException) e).getResultCode())
                         .isEqualTo(RunSessionErrorCode.ACTIVE_SESSION_ALREADY_EXISTS));
+
+        verify(runningSessionRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("협동 러닝 참가자가 artRunSessionId를 보내면 링크가 저장된다")
+    void createRunSession_withArtRunSessionId_success() {
+        // given
+        Long userId = 1L;
+        Long artRunSessionId = 100L;
+        RunSessionStartReq request = new RunSessionStartReq();
+        ReflectionTestUtils.setField(request, "startTime", LocalDateTime.now());
+        ReflectionTestUtils.setField(request, "artRunSessionId", artRunSessionId);
+
+        User user = User.createTmpUser(Provider.KAKAO, "kakaoId", "nickname", null);
+        given(userRepository.findById(userId)).willReturn(Optional.of(user));
+        given(runningSessionRepository.existsByUserIdAndStatus(userId, RunningSessionStatus.ACTIVE)).willReturn(false);
+        given(artRunParticipantRepository.existsByArtRunSession_IdAndUser_Id(artRunSessionId, userId)).willReturn(true);
+        given(runningSessionRepository.save(any(RunningSession.class))).willAnswer(i -> i.getArgument(0));
+
+        // when
+        runSessionService.createRunSession(userId, request);
+
+        // then
+        ArgumentCaptor<RunningSession> captor = ArgumentCaptor.forClass(RunningSession.class);
+        verify(runningSessionRepository).save(captor.capture());
+        assertThat(captor.getValue().getArtRunSessionId()).isEqualTo(artRunSessionId);
+    }
+
+    @Test
+    @DisplayName("협동 러닝 비참가자가 artRunSessionId를 보내면 예외 발생")
+    void createRunSession_artRunNotParticipant() {
+        // given
+        Long userId = 1L;
+        Long artRunSessionId = 100L;
+        RunSessionStartReq request = new RunSessionStartReq();
+        ReflectionTestUtils.setField(request, "startTime", LocalDateTime.now());
+        ReflectionTestUtils.setField(request, "artRunSessionId", artRunSessionId);
+
+        User user = User.createTmpUser(Provider.KAKAO, "kakaoId", "nickname", null);
+        given(userRepository.findById(userId)).willReturn(Optional.of(user));
+        given(runningSessionRepository.existsByUserIdAndStatus(userId, RunningSessionStatus.ACTIVE)).willReturn(false);
+        given(artRunParticipantRepository.existsByArtRunSession_IdAndUser_Id(artRunSessionId, userId)).willReturn(false);
+
+        // when & then
+        assertThatThrownBy(() -> runSessionService.createRunSession(userId, request))
+                .isInstanceOf(GlobalException.class)
+                .satisfies(e -> assertThat(((GlobalException) e).getResultCode())
+                        .isEqualTo(ArtRunErrorCode.NOT_PARTICIPANT));
 
         verify(runningSessionRepository, never()).save(any());
     }

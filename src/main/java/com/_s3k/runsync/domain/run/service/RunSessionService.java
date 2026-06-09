@@ -1,5 +1,7 @@
 package com._s3k.runsync.domain.run.service;
 
+import com._s3k.runsync.domain.artrun.exception.ArtRunErrorCode;
+import com._s3k.runsync.domain.artrun.repository.ArtRunParticipantRepository;
 import com._s3k.runsync.domain.location.service.LocationService;
 import com._s3k.runsync.domain.run.dto.request.LocationUpdateReq;
 import com._s3k.runsync.domain.run.dto.request.RunRecordDetailReq;
@@ -47,6 +49,7 @@ public class RunSessionService {
     private final RunRecordRepository runRecordRepository;
     private final RunSessionRedisRepository runSessionRedisRepository;
     private final LocationService locationService;
+    private final ArtRunParticipantRepository artRunParticipantRepository;
     private final ObjectMapper objectMapper;
 
 
@@ -60,8 +63,14 @@ public class RunSessionService {
             throw new GlobalException(RunSessionErrorCode.ACTIVE_SESSION_ALREADY_EXISTS);
         }
 
+        Long artRunSessionId = request.getArtRunSessionId();
+        if (artRunSessionId != null
+                && !artRunParticipantRepository.existsByArtRunSession_IdAndUser_Id(artRunSessionId, userId)) {
+            throw new GlobalException(ArtRunErrorCode.NOT_PARTICIPANT);
+        }
+
         try {
-            RunningSession session = RunningSession.of(user, request.getStartTime());
+            RunningSession session = RunningSession.of(user, request.getStartTime(), artRunSessionId);
             runningSessionRepository.save(session);
             return RunSessionStartRes.of(session);
         } catch (DataIntegrityViolationException e) {
