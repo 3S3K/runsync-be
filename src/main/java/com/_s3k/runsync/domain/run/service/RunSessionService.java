@@ -9,6 +9,7 @@ import com._s3k.runsync.domain.run.dto.request.RunRecordDetailReq;
 import com._s3k.runsync.domain.run.dto.request.RunSessionEndReq;
 import com._s3k.runsync.domain.run.dto.request.RunSessionStartReq;
 import com._s3k.runsync.domain.run.dto.response.RunRecordDetailRes;
+import com._s3k.runsync.domain.run.dto.response.RunSessionActiveRes;
 import com._s3k.runsync.domain.run.dto.response.RunSessionEndRes;
 import com._s3k.runsync.domain.run.dto.response.RunSessionStartRes;
 import com._s3k.runsync.domain.run.exception.RunSessionErrorCode;
@@ -33,12 +34,14 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -54,6 +57,7 @@ public class RunSessionService {
     private final ArtRunParticipantRepository artRunParticipantRepository;
     private final ArtRunSessionRepository artRunSessionRepository;
     private final ObjectMapper objectMapper;
+    private final Clock clock;
 
 
     @Transactional
@@ -61,10 +65,15 @@ public class RunSessionService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new GlobalException(UserErrorCode.USER_NOT_FOUND));
 
-        // 일반적인 경우 서비스 레벨에서 차단
-        if (runningSessionRepository.existsByUserIdAndStatus(userId, RunningSessionStatus.ACTIVE)) {
-            throw new GlobalException(RunSessionErrorCode.ACTIVE_SESSION_ALREADY_EXISTS);
-        }
+        // 진행 중 세션이 있으면: 오래 방치된 세션은 자동 정리, 최근 세션은 차단
+        runningSessionRepository.findByUserIdAndStatus(userId, RunningSessionStatus.ACTIVE)
+                .ifPresent(active -> {
+                    if (!active.isStale(LocalDateTime.now(clock))) {
+                        throw new GlobalException(RunSessionErrorCode.ACTIVE_SESSION_ALREADY_EXISTS);
+                    }
+                    active.abandon();
+                    runningSessionRepository.saveAndFlush(active);
+                });
 
         Long artRunSessionId = request.getArtRunSessionId();
         if (artRunSessionId != null) {
@@ -84,6 +93,12 @@ public class RunSessionService {
             // 동시 요청 시 DB 유니크 인덱스(idx_user_active_session)가 잡아주는 케이스
             throw new GlobalException(RunSessionErrorCode.ACTIVE_SESSION_ALREADY_EXISTS);
         }
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<RunSessionActiveRes> getActiveRunSession(Long userId) {
+        return runningSessionRepository.findByUserIdAndStatus(userId, RunningSessionStatus.ACTIVE)
+                .map(RunSessionActiveRes::of);
     }
 
     @Transactional

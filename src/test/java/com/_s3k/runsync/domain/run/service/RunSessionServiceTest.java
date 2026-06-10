@@ -8,6 +8,7 @@ import com._s3k.runsync.domain.run.dto.request.LocationUpdateReq;
 import com._s3k.runsync.domain.run.dto.request.RunRecordDetailReq;
 import com._s3k.runsync.domain.run.dto.request.RunSessionEndReq;
 import com._s3k.runsync.domain.run.dto.request.RunSessionStartReq;
+import com._s3k.runsync.domain.run.dto.response.RunSessionActiveRes;
 import com._s3k.runsync.domain.run.exception.RunSessionErrorCode;
 import com._s3k.runsync.domain.run.repository.RunRecordRepository;
 import com._s3k.runsync.domain.run.repository.RunSessionRedisRepository;
@@ -33,7 +34,10 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.math.BigDecimal;
+import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
 
@@ -76,6 +80,9 @@ class RunSessionServiceTest {
     @Spy
     private ObjectMapper objectMapper = new ObjectMapper();
 
+    @Spy
+    private Clock clock = Clock.fixed(Instant.parse("2026-06-10T00:00:00Z"), ZoneOffset.UTC);
+
     @Test
     @DisplayName("러닝 세션 생성 성공")
     void createRunSession_success() {
@@ -86,7 +93,7 @@ class RunSessionServiceTest {
 
         User user = User.createTmpUser(Provider.KAKAO, "kakaoId", "nickname", null);
         given(userRepository.findById(userId)).willReturn(Optional.of(user));
-        given(runningSessionRepository.existsByUserIdAndStatus(userId, RunningSessionStatus.ACTIVE)).willReturn(false);
+        given(runningSessionRepository.findByUserIdAndStatus(userId, RunningSessionStatus.ACTIVE)).willReturn(Optional.empty());
         given(runningSessionRepository.save(any(RunningSession.class))).willAnswer(i -> i.getArgument(0));
 
         // when
@@ -116,7 +123,7 @@ class RunSessionServiceTest {
     }
 
     @Test
-    @DisplayName("이미 진행 중인 세션이 있을 때 예외 발생")
+    @DisplayName("최근 진행 중인 세션이 있으면 예외 발생")
     void createRunSession_activeSessionAlreadyExists() {
         // given
         Long userId = 1L;
@@ -124,8 +131,10 @@ class RunSessionServiceTest {
         ReflectionTestUtils.setField(request, "startTime", LocalDateTime.now());
 
         User user = User.createTmpUser(Provider.KAKAO, "kakaoId", "nickname", null);
+        RunningSession active = mock(RunningSession.class);
+        given(active.isStale(any())).willReturn(false);
         given(userRepository.findById(userId)).willReturn(Optional.of(user));
-        given(runningSessionRepository.existsByUserIdAndStatus(userId, RunningSessionStatus.ACTIVE)).willReturn(true);
+        given(runningSessionRepository.findByUserIdAndStatus(userId, RunningSessionStatus.ACTIVE)).willReturn(Optional.of(active));
 
         // when & then
         assertThatThrownBy(() -> runSessionService.createRunSession(userId, request))
@@ -134,6 +143,66 @@ class RunSessionServiceTest {
                         .isEqualTo(RunSessionErrorCode.ACTIVE_SESSION_ALREADY_EXISTS));
 
         verify(runningSessionRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("오래 방치된 ACTIVE 세션은 자동 정리되고 새 세션이 시작된다")
+    void createRunSession_staleSessionAutoAbandoned() {
+        // given
+        Long userId = 1L;
+        RunSessionStartReq request = new RunSessionStartReq();
+        ReflectionTestUtils.setField(request, "startTime", LocalDateTime.now());
+
+        User user = User.createTmpUser(Provider.KAKAO, "kakaoId", "nickname", null);
+        RunningSession stale = mock(RunningSession.class);
+        given(stale.isStale(any())).willReturn(true);
+        given(userRepository.findById(userId)).willReturn(Optional.of(user));
+        given(runningSessionRepository.findByUserIdAndStatus(userId, RunningSessionStatus.ACTIVE)).willReturn(Optional.of(stale));
+        given(runningSessionRepository.save(any(RunningSession.class))).willAnswer(i -> i.getArgument(0));
+
+        // when
+        runSessionService.createRunSession(userId, request);
+
+        // then
+        verify(stale).abandon();
+        verify(runningSessionRepository).saveAndFlush(stale);
+        verify(runningSessionRepository).save(any(RunningSession.class));
+    }
+
+    @Test
+    @DisplayName("진행 중 세션 조회 - 있으면 세션 정보를 반환한다")
+    void getActiveRunSession_exists() {
+        // given
+        Long userId = 1L;
+        User user = User.createTmpUser(Provider.KAKAO, "kakaoId", "nickname", null);
+        RunningSession session = RunningSession.of(user, LocalDateTime.now(), 100L);
+        ReflectionTestUtils.setField(session, "id", 5L);
+        given(runningSessionRepository.findByUserIdAndStatus(userId, RunningSessionStatus.ACTIVE))
+                .willReturn(Optional.of(session));
+
+        // when
+        Optional<RunSessionActiveRes> result = runSessionService.getActiveRunSession(userId);
+
+        // then
+        assertThat(result).isPresent();
+        assertThat(result.get().getSessionId()).isEqualTo(5L);
+        assertThat(result.get().getArtRunSessionId()).isEqualTo(100L);
+        assertThat(result.get().getStatus()).isEqualTo(RunningSessionStatus.ACTIVE);
+    }
+
+    @Test
+    @DisplayName("진행 중 세션 조회 - 없으면 null을 반환한다")
+    void getActiveRunSession_none() {
+        // given
+        Long userId = 1L;
+        given(runningSessionRepository.findByUserIdAndStatus(userId, RunningSessionStatus.ACTIVE))
+                .willReturn(Optional.empty());
+
+        // when
+        Optional<RunSessionActiveRes> result = runSessionService.getActiveRunSession(userId);
+
+        // then
+        assertThat(result).isEmpty();
     }
 
     @Test
@@ -149,7 +218,7 @@ class RunSessionServiceTest {
         User user = User.createTmpUser(Provider.KAKAO, "kakaoId", "nickname", null);
         ArtRunSession artRunSession = mock(ArtRunSession.class);
         given(userRepository.findById(userId)).willReturn(Optional.of(user));
-        given(runningSessionRepository.existsByUserIdAndStatus(userId, RunningSessionStatus.ACTIVE)).willReturn(false);
+        given(runningSessionRepository.findByUserIdAndStatus(userId, RunningSessionStatus.ACTIVE)).willReturn(Optional.empty());
         given(artRunSessionRepository.findById(artRunSessionId)).willReturn(Optional.of(artRunSession));
         given(artRunParticipantRepository.existsByArtRunSession_IdAndUser_Id(artRunSessionId, userId)).willReturn(true);
         given(runningSessionRepository.save(any(RunningSession.class))).willAnswer(i -> i.getArgument(0));
@@ -176,7 +245,7 @@ class RunSessionServiceTest {
 
         User user = User.createTmpUser(Provider.KAKAO, "kakaoId", "nickname", null);
         given(userRepository.findById(userId)).willReturn(Optional.of(user));
-        given(runningSessionRepository.existsByUserIdAndStatus(userId, RunningSessionStatus.ACTIVE)).willReturn(false);
+        given(runningSessionRepository.findByUserIdAndStatus(userId, RunningSessionStatus.ACTIVE)).willReturn(Optional.empty());
         given(artRunSessionRepository.findById(artRunSessionId)).willReturn(Optional.of(mock(ArtRunSession.class)));
         given(artRunParticipantRepository.existsByArtRunSession_IdAndUser_Id(artRunSessionId, userId)).willReturn(false);
 
@@ -201,7 +270,7 @@ class RunSessionServiceTest {
 
         User user = User.createTmpUser(Provider.KAKAO, "kakaoId", "nickname", null);
         given(userRepository.findById(userId)).willReturn(Optional.of(user));
-        given(runningSessionRepository.existsByUserIdAndStatus(userId, RunningSessionStatus.ACTIVE)).willReturn(false);
+        given(runningSessionRepository.findByUserIdAndStatus(userId, RunningSessionStatus.ACTIVE)).willReturn(Optional.empty());
         given(artRunSessionRepository.findById(artRunSessionId)).willReturn(Optional.empty());
 
         // when & then
@@ -226,7 +295,7 @@ class RunSessionServiceTest {
         User user = User.createTmpUser(Provider.KAKAO, "kakaoId", "nickname", null);
         ArtRunSession artRunSession = mock(ArtRunSession.class);
         given(userRepository.findById(userId)).willReturn(Optional.of(user));
-        given(runningSessionRepository.existsByUserIdAndStatus(userId, RunningSessionStatus.ACTIVE)).willReturn(false);
+        given(runningSessionRepository.findByUserIdAndStatus(userId, RunningSessionStatus.ACTIVE)).willReturn(Optional.empty());
         given(artRunSessionRepository.findById(artRunSessionId)).willReturn(Optional.of(artRunSession));
         given(artRunParticipantRepository.existsByArtRunSession_IdAndUser_Id(artRunSessionId, userId)).willReturn(true);
         doThrow(new GlobalException(ArtRunErrorCode.ARTRUN_NOT_IN_PROGRESS)).when(artRunSession).validateInProgress();

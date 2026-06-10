@@ -5,6 +5,7 @@ import com._s3k.runsync.domain.run.dto.request.RunRecordDetailReq;
 import com._s3k.runsync.domain.run.dto.request.RunSessionEndReq;
 import com._s3k.runsync.domain.run.dto.request.RunSessionStartReq;
 import com._s3k.runsync.domain.run.dto.response.RunRecordDetailRes;
+import com._s3k.runsync.domain.run.dto.response.RunSessionActiveRes;
 import com._s3k.runsync.domain.run.dto.response.RunSessionEndRes;
 import com._s3k.runsync.domain.run.dto.response.RunSessionStartRes;
 import com._s3k.runsync.domain.run.service.RunSessionService;
@@ -13,6 +14,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -34,6 +36,14 @@ public class RunSessionController {
             @Valid @RequestBody RunSessionStartReq request
     ) {
         return CommonResponse.success(runSessionService.createRunSession(userId, request));
+    }
+
+    @GetMapping("/active")
+    @Operation(summary = "진행 중 러닝 세션 조회", description = "현재 진행 중(ACTIVE)인 러닝 세션을 조회합니다. 없으면 data가 null입니다. 로그인 필요")
+    public CommonResponse<RunSessionActiveRes> getActiveRunSession(
+            @AuthenticationPrincipal Long userId
+    ) {
+        return CommonResponse.success(runSessionService.getActiveRunSession(userId).orElse(null));
     }
 
     @PatchMapping("/{sessionId}/location")

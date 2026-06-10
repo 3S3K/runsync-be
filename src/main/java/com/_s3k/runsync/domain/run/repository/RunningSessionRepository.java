@@ -9,8 +9,6 @@ import java.util.Optional;
 
 public interface RunningSessionRepository extends JpaRepository<RunningSession, Long> {
 
-    boolean existsByUserIdAndStatus(Long userId, RunningSessionStatus status);
-
     Optional<RunningSession> findByUserIdAndStatus(Long userId, RunningSessionStatus status);
 
     List<RunningSession> findByUserIdInAndStatus(List<Long> userIds, RunningSessionStatus status);
