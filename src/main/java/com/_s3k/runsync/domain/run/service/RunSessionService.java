@@ -41,6 +41,7 @@ import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -95,10 +96,9 @@ public class RunSessionService {
     }
 
     @Transactional(readOnly = true)
-    public RunSessionActiveRes getActiveRunSession(Long userId) {
+    public Optional<RunSessionActiveRes> getActiveRunSession(Long userId) {
         return runningSessionRepository.findByUserIdAndStatus(userId, RunningSessionStatus.ACTIVE)
-                .map(RunSessionActiveRes::of)
-                .orElse(null);
+                .map(RunSessionActiveRes::of);
     }
 
     @Transactional

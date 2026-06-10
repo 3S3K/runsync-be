@@ -43,7 +43,7 @@ public class RunSessionController {
     public CommonResponse<RunSessionActiveRes> getActiveRunSession(
             @AuthenticationPrincipal Long userId
     ) {
-        return CommonResponse.success(runSessionService.getActiveRunSession(userId));
+        return CommonResponse.success(runSessionService.getActiveRunSession(userId).orElse(null));
     }
 
     @PatchMapping("/{sessionId}/location")

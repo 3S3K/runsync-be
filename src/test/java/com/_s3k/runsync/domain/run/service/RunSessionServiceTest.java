@@ -181,13 +181,13 @@ class RunSessionServiceTest {
                 .willReturn(Optional.of(session));
 
         // when
-        RunSessionActiveRes result = runSessionService.getActiveRunSession(userId);
+        Optional<RunSessionActiveRes> result = runSessionService.getActiveRunSession(userId);
 
         // then
-        assertThat(result).isNotNull();
-        assertThat(result.getSessionId()).isEqualTo(5L);
-        assertThat(result.getArtRunSessionId()).isEqualTo(100L);
-        assertThat(result.getStatus()).isEqualTo(RunningSessionStatus.ACTIVE);
+        assertThat(result).isPresent();
+        assertThat(result.get().getSessionId()).isEqualTo(5L);
+        assertThat(result.get().getArtRunSessionId()).isEqualTo(100L);
+        assertThat(result.get().getStatus()).isEqualTo(RunningSessionStatus.ACTIVE);
     }
 
     @Test
@@ -199,10 +199,10 @@ class RunSessionServiceTest {
                 .willReturn(Optional.empty());
 
         // when
-        RunSessionActiveRes result = runSessionService.getActiveRunSession(userId);
+        Optional<RunSessionActiveRes> result = runSessionService.getActiveRunSession(userId);
 
         // then
-        assertThat(result).isNull();
+        assertThat(result).isEmpty();
     }
 
     @Test
