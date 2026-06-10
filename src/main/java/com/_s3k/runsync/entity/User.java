@@ -93,6 +93,10 @@ public class User extends BaseEntity {
         this.role = Role.USER;
     }
 
+    public boolean isProfileComplete() {
+        return nickname != null && !nickname.isBlank() && gender != null && birthDate != null;
+    }
+
     /**
      * 사용자 정보 선택적 업데이트
      */

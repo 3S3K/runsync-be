@@ -14,7 +14,7 @@ public interface RunRecordRepository extends JpaRepository<RunRecord, Long> {
 
     Optional<RunRecord> findByRunningSessionId(Long sessionId);
 
-    @Query("SELECT COALESCE(SUM(r.distance), 0) AS totalDistance, COUNT(r) AS totalRunCount FROM RunRecord r WHERE r.user.id = :userId AND r.startTime >= :start AND r.startTime < :end")
+    @Query("SELECT COALESCE(SUM(r.distance), 0) AS totalDistance, COUNT(r) AS totalRunCount, COALESCE(SUM(r.durationSeconds), 0) AS totalDurationSeconds FROM RunRecord r WHERE r.user.id = :userId AND r.startTime >= :start AND r.startTime < :end")
     MonthlyStatsProjection findMonthlyStats(@Param("userId") Long userId, @Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
 
     List<RunRecord> findByUserIdOrderByIdDesc(Long userId, Pageable pageable);

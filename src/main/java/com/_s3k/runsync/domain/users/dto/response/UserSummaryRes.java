@@ -19,18 +19,34 @@ public class UserSummaryRes {
     @Schema(description = "월간 러닝 통계")
     public static class MonthlyStats {
 
+        private static final double MONTHLY_GOAL_KM = 50.0;
+
         @Schema(description = "이번 달 총 거리 (km)", example = "25.30")
         private Double totalDistance;
         @Schema(description = "이번 달 러닝 횟수", example = "5")
         private Integer totalRunCount;
+        @Schema(description = "이번 달 총 러닝 시간 (초)", example = "9000")
+        private Integer totalDurationSeconds;
+        @Schema(description = "이번 달 평균 페이스 (분/km), 기록 없으면 null", example = "6.43")
+        private Double averagePace;
+        @Schema(description = "이번 달 목표 거리 (km)", example = "50.0")
+        private Double monthlyGoalKm;
 
-        private MonthlyStats(Double totalDistance, Integer totalRunCount) {
+        private MonthlyStats(Double totalDistance, Integer totalRunCount, Integer totalDurationSeconds,
+                             Double averagePace, Double monthlyGoalKm) {
             this.totalDistance = totalDistance;
             this.totalRunCount = totalRunCount;
+            this.totalDurationSeconds = totalDurationSeconds;
+            this.averagePace = averagePace;
+            this.monthlyGoalKm = monthlyGoalKm;
         }
 
-        public static MonthlyStats of(Double totalDistance, Integer totalRunCount) {
-            return new MonthlyStats(totalDistance, totalRunCount);
+        public static MonthlyStats of(Double totalDistance, Integer totalRunCount, Integer totalDurationSeconds) {
+            Double averagePace = null;
+            if (totalDistance != null && totalDistance > 0 && totalDurationSeconds != null) {
+                averagePace = Math.round((totalDurationSeconds / 60.0 / totalDistance) * 100) / 100.0;
+            }
+            return new MonthlyStats(totalDistance, totalRunCount, totalDurationSeconds, averagePace, MONTHLY_GOAL_KM);
         }
     }
 
@@ -40,11 +56,11 @@ public class UserSummaryRes {
         this.monthlyStats = monthlyStats;
     }
 
-    public static UserSummaryRes of(User user, Double totalDistance, Integer totalRunCount) {
+    public static UserSummaryRes of(User user, Double totalDistance, Integer totalRunCount, Integer totalDurationSeconds) {
         return new UserSummaryRes(
                 user.getNickname(),
                 user.getProfileImage(),
-                MonthlyStats.of(totalDistance, totalRunCount)
+                MonthlyStats.of(totalDistance, totalRunCount, totalDurationSeconds)
         );
     }
 }
