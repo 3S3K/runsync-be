@@ -43,7 +43,7 @@ public class UserSummaryRes {
 
         public static MonthlyStats of(Double totalDistance, Integer totalRunCount, Integer totalDurationSeconds) {
             Double averagePace = null;
-            if (totalDistance != null && totalDistance > 0) {
+            if (totalDistance != null && totalDistance > 0 && totalDurationSeconds != null) {
                 averagePace = Math.round((totalDurationSeconds / 60.0 / totalDistance) * 100) / 100.0;
             }
             return new MonthlyStats(totalDistance, totalRunCount, totalDurationSeconds, averagePace, MONTHLY_GOAL_KM);
