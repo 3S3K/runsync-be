@@ -78,7 +78,7 @@ public class UserService {
             throw new GlobalException(UserErrorCode.NICKNAME_ALREADY_EXISTS);
         }
 
-        if (user.getRole() == Role.TMP_USER && request.getNickname() != null && !request.getNickname().isBlank()) {
+        if (user.getRole() == Role.TMP_USER && user.isProfileComplete()) {
             user.upgradeToUser();
         }
 
@@ -95,7 +95,8 @@ public class UserService {
         LocalDateTime end = start.plusMonths(1);
 
         MonthlyStatsProjection stats = runRecordRepository.findMonthlyStats(userId, start, end);
-        return UserSummaryRes.of(user, stats.getTotalDistance().doubleValue(), stats.getTotalRunCount().intValue());
+        return UserSummaryRes.of(user, stats.getTotalDistance().doubleValue(),
+                stats.getTotalRunCount().intValue(), stats.getTotalDurationSeconds().intValue());
     }
 
     @Transactional(readOnly = true)

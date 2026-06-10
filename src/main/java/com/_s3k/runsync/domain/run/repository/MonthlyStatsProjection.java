@@ -5,4 +5,5 @@ import java.math.BigDecimal;
 public interface MonthlyStatsProjection {
     BigDecimal getTotalDistance();
     Long getTotalRunCount();
+    Long getTotalDurationSeconds();
 }
