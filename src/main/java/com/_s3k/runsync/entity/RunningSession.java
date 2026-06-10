@@ -25,6 +25,7 @@ import java.util.Objects;
 public class RunningSession extends BaseEntity {
 
     private static final GeometryFactory GEOMETRY_FACTORY = new GeometryFactory(new PrecisionModel(), 4326);
+    private static final long STALE_THRESHOLD_HOURS = 12;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
@@ -123,6 +124,14 @@ public class RunningSession extends BaseEntity {
 
     public void resume() {
         this.status = RunningSessionStatus.ACTIVE;
+    }
+
+    public boolean isStale(LocalDateTime now) {
+        return this.startTime.isBefore(now.minusHours(STALE_THRESHOLD_HOURS));
+    }
+
+    public void abandon() {
+        this.status = RunningSessionStatus.ABANDONED;
     }
 
 }

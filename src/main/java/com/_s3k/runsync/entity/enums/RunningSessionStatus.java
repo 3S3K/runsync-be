@@ -6,5 +6,6 @@ import lombok.Getter;
 public enum RunningSessionStatus {
     ACTIVE,
     PAUSED,
-    COMPLETED
+    COMPLETED,
+    ABANDONED
 }
