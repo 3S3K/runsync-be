@@ -23,12 +23,16 @@ public class RunSessionActiveRes {
     @Schema(description = "연결된 협동 러닝 세션 ID (일반 러닝이면 null)", example = "100")
     private final Long artRunSessionId;
 
+    @Schema(description = "누적 이동 거리 (km). 새로고침/재접속 시 이어뛰기 거리 복원용", example = "1.25")
+    private final Double distance;
+
     private RunSessionActiveRes(Long sessionId, RunningSessionStatus status,
-                               LocalDateTime startTime, Long artRunSessionId) {
+                               LocalDateTime startTime, Long artRunSessionId, Double distance) {
         this.sessionId = sessionId;
         this.status = status;
         this.startTime = startTime;
         this.artRunSessionId = artRunSessionId;
+        this.distance = distance;
     }
 
     public static RunSessionActiveRes of(RunningSession session) {
@@ -36,7 +40,8 @@ public class RunSessionActiveRes {
                 session.getId(),
                 session.getStatus(),
                 session.getStartTime(),
-                session.getArtRunSessionId()
+                session.getArtRunSessionId(),
+                session.getTotalDistance() != null ? session.getTotalDistance().doubleValue() : null
         );
     }
 }

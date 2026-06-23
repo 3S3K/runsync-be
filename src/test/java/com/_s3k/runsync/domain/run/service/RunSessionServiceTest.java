@@ -188,6 +188,7 @@ class RunSessionServiceTest {
         assertThat(result.get().getSessionId()).isEqualTo(5L);
         assertThat(result.get().getArtRunSessionId()).isEqualTo(100L);
         assertThat(result.get().getStatus()).isEqualTo(RunningSessionStatus.ACTIVE);
+        assertThat(result.get().getDistance()).isEqualTo(0.0);
     }
 
     @Test
