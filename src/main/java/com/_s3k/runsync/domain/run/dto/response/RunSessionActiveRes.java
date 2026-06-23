@@ -41,7 +41,7 @@ public class RunSessionActiveRes {
                 session.getStatus(),
                 session.getStartTime(),
                 session.getArtRunSessionId(),
-                session.getTotalDistance() != null ? session.getTotalDistance().doubleValue() : null
+                session.getTotalDistance().doubleValue()
         );
     }
 }
