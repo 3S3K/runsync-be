@@ -14,17 +14,30 @@ import { execFileSync } from 'node:child_process';
 import { createHmac } from 'node:crypto';
 import { setTimeout as sleep } from 'node:timers/promises';
 
-const args = Object.fromEntries(
-  process.argv.slice(2).reduce((pairs, value, index, all) => (
-    value.startsWith('--') ? [...pairs, [value.slice(2), all[index + 1]]] : pairs
-  ), []),
-);
+// "--이름 값" 쌍만 받는다. 값이 빠진 옵션은 기본값으로 넘어가지 않도록 따로 모아 오류로 알린다
+const args = {};
+const missingValues = [];
+process.argv.slice(2).forEach((value, index, all) => {
+  if (!value.startsWith('--')) {
+    return;
+  }
+  const next = all[index + 1];
+  if (next === undefined || next.startsWith('--')) {
+    missingValues.push(value);
+  } else {
+    args[value.slice(2)] = next;
+  }
+});
+if (missingValues.length) {
+  console.error(`값이 빠진 옵션이 있습니다: ${missingValues.join(', ')}`);
+  process.exit(1);
+}
 const TARGET = (args.target || 'http://localhost:8090').replace(/\/$/, '');
 const USERS = Number(args.users || 5);
 const DURATION_SEC = Number(args.duration || 30);
 const INTERVAL_MS = Number(args.interval || 1000);        // GPS 전송 주기
 const FIRST_USER_ID = Number(args['first-user-id'] || 1);
-const ROOM_ID = args.room ? Number(args.room) : null;      // 협동 러닝(러닝룸) 번호
+const ROOM_ID = args.room !== undefined ? Number(args.room) : null;      // 협동 러닝(러닝룸) 번호
 const SERVER_PID = args['server-pid'] || null;             // 주면 서버 프로세스의 CPU·메모리를 함께 잰다
 const JWT_SECRET = process.env.JWT_SECRET || '';
 const SHARED_TOKEN = process.env.ACCESS_TOKEN || '';
@@ -32,7 +45,7 @@ const IS_SHARED_ACCOUNT = !JWT_SECRET;
 
 const CONNECT_TIMEOUT_MS = 10000;
 const REQUEST_TIMEOUT_MS = 10000;      // REST 요청 하나의 제한 시간. 넘기면 실패로 센다
-const PING_TIMEOUT_MS = 5000;          // 이 시간 안에 응답이 없는 핑은 시간 초과로 센다
+const PING_TIMEOUT_MS = 5000;          // 이 시간 안에 응답이 없는 핑은 시간 초과로 세고, 그 연결의 핑 측정을 멈춘다
 const SAVE_EVERY_SEC = 5;              // 실제 앱이 누적 거리·시간을 저장하는 주기
 const SAMPLE_EVERY_MS = 2000;          // 서버 CPU·메모리를 재는 주기
 const SETTLE_MS = 500;
@@ -44,8 +57,8 @@ if (IS_SHARED_ACCOUNT && !SHARED_TOKEN) {
 }
 const invalid = [
   ['users', Number.isInteger(USERS) && USERS > 0],
-  ['duration', DURATION_SEC > 0],
-  ['interval', INTERVAL_MS > 0],
+  ['duration', Number.isFinite(DURATION_SEC) && DURATION_SEC > 0],
+  ['interval', Number.isFinite(INTERVAL_MS) && INTERVAL_MS > 0],
   ['first-user-id', Number.isInteger(FIRST_USER_ID) && FIRST_USER_ID > 0],
   ['room', ROOM_ID == null || (Number.isInteger(ROOM_ID) && ROOM_ID > 0)],
 ].filter(([, ok]) => !ok).map(([name]) => `--${name}`);
@@ -267,7 +280,7 @@ async function runUser(index, startSignal, reportReady) {
 
   // 러닝룸이 없으면 서버의 핑 응답으로 왕복 시간을 잰다.
   // 핑 응답은 같은 계정의 모든 연결로 전달되고 요청 식별자가 없으므로, 단일 계정 모드에서는 연결 하나만 핑을 보낸다.
-  const probe = ROOM_ID == null && (!IS_SHARED_ACCOUNT || index === 0) ? { sentAt: null, stale: 0 } : null;
+  const probe = ROOM_ID == null && (!IS_SHARED_ACCOUNT || index === 0) ? { sentAt: null, stopped: false } : null;
 
   if (ROOM_ID != null) {
     client.subscribe(`/topic/artrun/${ROOM_ID}`, 'room', (payload) => {
@@ -283,11 +296,8 @@ async function runUser(index, startSignal, reportReady) {
     });
   } else if (probe) {
     client.subscribe('/user/queue/ping', 'ping', () => {
-      if (probe.stale > 0) {
-        probe.stale -= 1;      // 시간 초과로 이미 센 핑의 뒤늦은 응답
-        return;
-      }
-      if (probe.sentAt != null) {
+      // 시간 초과가 난 뒤에는 응답이 어느 핑의 것인지 구분할 수 없으므로 세지 않는다
+      if (!probe.stopped && probe.sentAt != null) {
         stats.received += 1;
         stats.latencies.push(performance.now() - probe.sentAt);
         probe.sentAt = null;
@@ -323,10 +333,10 @@ async function runUser(index, startSignal, reportReady) {
       // 응답을 기다리는 핑이 있으면 새로 보내지 않는다. 보낸 시각이 덮어써지면 지연이 실제보다 짧게 잡힌다
       if (probe.sentAt != null && performance.now() - probe.sentAt > PING_TIMEOUT_MS) {
         stats.pingTimeout += 1;
-        probe.stale += 1;
+        probe.stopped = true;
         probe.sentAt = null;
       }
-      if (probe.sentAt == null) {
+      if (!probe.stopped && probe.sentAt == null) {
         probe.sentAt = performance.now();
         client.send('/app/ping', {});
         stats.pingSent += 1;
@@ -355,7 +365,16 @@ async function runUser(index, startSignal, reportReady) {
   // 마지막 메시지가 도착할 시간을 주고, 보낸 저장 요청의 결과가 모두 확정된 뒤에 러닝을 종료한다
   await Promise.all([sleep(LAST_MESSAGE_WAIT_MS), ...saves]);
   if (probe?.sentAt != null) {
-    stats.pingTimeout += 1;
+    // 마지막 핑도 제한 시간을 다 채워 기다린 뒤에 판정한다. 기다리는 동안 온 응답은 수신으로 잡힌다
+    const remainingMs = PING_TIMEOUT_MS - (performance.now() - probe.sentAt);
+    if (remainingMs > 0 && !client.closed) {
+      await sleep(remainingMs);
+    }
+    if (probe.sentAt != null) {
+      stats.pingTimeout += 1;
+      probe.stopped = true;
+      probe.sentAt = null;
+    }
   }
 
   if (sessionId) {

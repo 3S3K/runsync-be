@@ -14,4 +14,6 @@ FROM users WHERE provider_id LIKE 'loadtest-%';
 
 SELECT (SELECT min(id) FROM users WHERE provider_id LIKE 'loadtest-%') AS first_user_id,
        (SELECT count(*) FROM users WHERE provider_id LIKE 'loadtest-%') AS users,
-       (SELECT max(id) FROM art_run_session WHERE title = 'LOADTEST') AS room_id;
+       (SELECT max(id) FROM art_run_session WHERE title = 'LOADTEST') AS room_id,
+       -- 스크립트는 first_user_id 부터 번호를 1씩 올려 쓴다. 중간에 다른 계정이 끼면 false 가 나온다
+       (SELECT max(id) - min(id) + 1 = count(*) FROM users WHERE provider_id LIKE 'loadtest-%') AS ids_are_consecutive;
