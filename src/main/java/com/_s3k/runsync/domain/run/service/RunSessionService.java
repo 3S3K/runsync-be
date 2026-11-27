@@ -1,5 +1,6 @@
 package com._s3k.runsync.domain.run.service;
 
+import com._s3k.runsync.global.config.ClockConfig;
 import com._s3k.runsync.domain.artrun.exception.ArtRunErrorCode;
 import com._s3k.runsync.domain.artrun.repository.ArtRunParticipantRepository;
 import com._s3k.runsync.domain.artrun.repository.ArtRunSessionRepository;
@@ -37,7 +38,6 @@ import java.math.RoundingMode;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDateTime;
-import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -175,7 +175,7 @@ public class RunSessionService {
                 double lng = ((Number) pathData.get("lng")).doubleValue();
                 double speed = ((Number) pathData.get("speed")).doubleValue();
                 LocalDateTime recordedAt = LocalDateTime.ofInstant(
-                        Instant.parse((String) pathData.get("recordedAt")), ZoneOffset.UTC);
+                        Instant.parse((String) pathData.get("recordedAt")), ClockConfig.SERVICE_ZONE);
                 BigDecimal speedKmh = BigDecimal.valueOf(speed * 3.6).setScale(2, RoundingMode.HALF_UP);
                 BigDecimal paceMinPerKm = null;
                 if (speed > 0) {
