@@ -48,4 +48,31 @@ class UserTest {
     private User userBornOn(LocalDate birthDate) {
         return User.of("nickname", "kakaoId", Provider.KAKAO, null, Role.USER, birthDate, Gender.MALE);
     }
+
+    @Test
+    @DisplayName("updateProfileImage - 새 사진 주소가 있으면 바꾼다")
+    void updateProfileImage_changes() {
+        // given
+        User user = User.createTmpUser(Provider.KAKAO, "kakaoId", "nickname", "http://old.example/a.jpg");
+
+        // when
+        user.updateProfileImage("http://new.example/b.jpg");
+
+        // then
+        assertThat(user.getProfileImage()).isEqualTo("http://new.example/b.jpg");
+    }
+
+    @Test
+    @DisplayName("updateProfileImage - 사진을 받지 못했으면(null·빈 값) 기존 사진을 유지한다")
+    void updateProfileImage_keepsWhenMissing() {
+        // given
+        User user = User.createTmpUser(Provider.KAKAO, "kakaoId", "nickname", "http://old.example/a.jpg");
+
+        // when
+        user.updateProfileImage(null);
+        user.updateProfileImage(" ");
+
+        // then
+        assertThat(user.getProfileImage()).isEqualTo("http://old.example/a.jpg");
+    }
 }

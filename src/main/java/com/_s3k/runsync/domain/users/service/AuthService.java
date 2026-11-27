@@ -53,6 +53,9 @@ public class AuthService {
 			user.reactivate();
 		}
 
+		// 카카오에서 사진을 바꿨으면 로그인할 때 반영한다
+		user.updateProfileImage(profileImage);
+
 		//access token, refresh token 생성 후 추가
 		String accessToken = jwtProvider.createAccessToken(user);
 		String refreshToken = jwtProvider.createRefreshToken(user);
