@@ -16,6 +16,8 @@ public class AiRecommendRes {
     @Getter
     public static class Course {
         private Integer rank;
+        private String name;
+        private Integer score;
         private Double distanceKm;
         private Double elevationGainM;
         private Double maxSlopePct;
@@ -23,11 +25,37 @@ public class AiRecommendRes {
         private CourseIntensity intensity;
         private String reason;
         private Geometry geometry;
+        private List<ElevationPoint> elevationProfile;
+        private Integer estimatedTimeMin;
+        private Integer stairsCount;
+        private String hrZone;
+        private List<Integer> hrBpmRange;
+        private Climb biggestClimb;
+        private List<SlopeSegment> slopeSegments;
     }
 
     @Getter
     public static class Geometry {
         private String type;
+        private List<List<Double>> coordinates;
+    }
+
+    @Getter
+    public static class ElevationPoint {
+        private Integer distanceM;
+        private Double elevationM;
+    }
+
+    @Getter
+    public static class Climb {
+        private Integer startM;
+        private Integer lengthM;
+        private Integer gainM;
+    }
+
+    @Getter
+    public static class SlopeSegment {
+        private String grade;
         private List<List<Double>> coordinates;
     }
 }

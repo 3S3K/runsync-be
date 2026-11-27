@@ -22,7 +22,8 @@ import java.util.List;
 @RequiredArgsConstructor
 public class CourseRecommendService {
 
-    private static final int RECENT_RECORD_COUNT = 5;
+    // 내 러닝 분석(RunnerSummaryService)도 같은 기록을 보여 주도록 같은 값을 쓴다
+    static final int RECENT_RECORD_COUNT = 5;
 
     private final UserRepository userRepository;
     private final RunRecordRepository runRecordRepository;
