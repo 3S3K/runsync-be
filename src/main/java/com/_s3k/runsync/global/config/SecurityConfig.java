@@ -15,6 +15,7 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import com._s3k.runsync.domain.users.repository.UserRepository;
+import com._s3k.runsync.global.security.JsonAuthenticationEntryPoint;
 import com._s3k.runsync.global.security.jwt.JwtValidator;
 import com._s3k.runsync.global.security.jwt.filter.JwtAuthenticationFilter;
 
@@ -31,11 +32,12 @@ public class SecurityConfig {
 	}
 
 	@Bean
-	public SecurityFilterChain filterChain(HttpSecurity http, UserRepository userRepository, CorsConfigurationSource corsConfigurationSource, JwtValidator jwtValidator) throws Exception {
+	public SecurityFilterChain filterChain(HttpSecurity http, UserRepository userRepository, CorsConfigurationSource corsConfigurationSource, JwtValidator jwtValidator, JsonAuthenticationEntryPoint authenticationEntryPoint) throws Exception {
 		return http
 			.csrf(csrf -> csrf.disable())
 			.cors(cors -> cors.configurationSource(corsConfigurationSource))
 			.formLogin(form -> form.disable())
+			.exceptionHandling(handling -> handling.authenticationEntryPoint(authenticationEntryPoint))
 			.authorizeHttpRequests(auth -> auth
 				.requestMatchers("/api/auth/login", "/api/auth/reissue", "/api/auth/logout").permitAll()
 				.requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-resources/**", "/webjars/**").permitAll()

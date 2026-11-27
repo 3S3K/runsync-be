@@ -5,6 +5,7 @@ import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -51,6 +52,16 @@ public class GlobalExceptionHandler {
         return ResponseEntity
             .status(GlobalErrorCode.VALIDATION_ERROR.getStatus())
             .body(new CommonResponse<>(GlobalErrorCode.VALIDATION_ERROR.getCode(), message));
+    }
+
+    // 요청 본문을 읽지 못한 경우(JSON 문법 오류, 잘못된 날짜·enum 값 등)
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<CommonResponse<Void>> handleNotReadable(HttpMessageNotReadableException e) {
+        log.warn("Request body not readable: {}", e.getMessage());
+
+        return ResponseEntity
+            .status(GlobalErrorCode.VALIDATION_ERROR.getStatus())
+            .body(new CommonResponse<>(GlobalErrorCode.VALIDATION_ERROR));
     }
 
     // @Validated 파라미터(@RequestParam/@PathVariable) 검증 실패 처리

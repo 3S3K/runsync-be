@@ -1,5 +1,7 @@
 package com._s3k.runsync.domain.run.dto.request;
 
+import com._s3k.runsync.global.common.json.ServiceZoneLocalDateTimeDeserializer;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PastOrPresent;
@@ -16,7 +18,9 @@ public class RunSessionStartReq {
 
     @NotNull
     @PastOrPresent
-    @Schema(description = "러닝 시작 시간", example = "2026-04-10T22:11:00")
+    @Schema(description = "러닝 시작 시간. 시간대가 붙은 값(Z, +09:00)은 한국 시간으로 변환하고, 없으면 한국 시간으로 본다",
+            example = "2026-04-10T13:11:00Z")
+    @JsonDeserialize(using = ServiceZoneLocalDateTimeDeserializer.class)
     private LocalDateTime startTime;
 
     @Positive
