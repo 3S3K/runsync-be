@@ -111,6 +111,13 @@ public class User extends BaseEntity {
     /**
      * 사용자 정보 선택적 업데이트
      */
+    // 로그인할 때 받은 최신 프로필 사진으로 바꾼다. 사진을 받지 못했으면 기존 값을 유지한다
+    public void updateProfileImage(String profileImage) {
+        if (profileImage != null && !profileImage.isBlank()) {
+            this.profileImage = profileImage;
+        }
+    }
+
     public void updateInfo(String nickname, String profileImage, Gender gender, LocalDate birthDate) {
         if (nickname != null && !nickname.isBlank()) {
             this.nickname = nickname;
