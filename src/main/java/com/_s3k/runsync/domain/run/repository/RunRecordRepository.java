@@ -26,6 +26,11 @@ public interface RunRecordRepository extends JpaRepository<RunRecord, Long> {
     @Query("SELECT r FROM RunRecord r WHERE r.user.id = :userId AND r.distance > 0 AND r.durationSeconds > 0 ORDER BY r.id DESC")
     List<RunRecord> findRecentWithDistanceAndDuration(@Param("userId") Long userId, Pageable pageable);
 
+    // 모델 재학습에 보낼 기록. 사용자의 나이·성별이 필요해 사용자를 함께 가져온다.
+    // 심박이 없는 기록도 "평소 페이스" 계산에 쓰이므로 포함한다. 최근 기록부터 pageable 의 크기만큼
+    @Query("SELECT r FROM RunRecord r JOIN FETCH r.user WHERE r.distance > 0 AND r.durationSeconds > 0 ORDER BY r.id DESC")
+    List<RunRecord> findRecentForTraining(Pageable pageable);
+
     @Query("SELECT COALESCE(SUM(r.distance), 0) FROM RunRecord r WHERE r.user.id = :userId AND r.startTime >= :start AND r.startTime < :end")
     BigDecimal sumDistanceBetween(@Param("userId") Long userId, @Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
 
