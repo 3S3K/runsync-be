@@ -10,6 +10,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
+import java.time.Period;
 
 @Entity
 @Table(name = "users")
@@ -95,6 +96,16 @@ public class User extends BaseEntity {
 
     public boolean isProfileComplete() {
         return nickname != null && !nickname.isBlank() && gender != null && birthDate != null;
+    }
+
+    /**
+     * 기준일의 만 나이. 생년월일을 입력하지 않은 사용자는 null
+     */
+    public Integer calculateAge(LocalDate today) {
+        if (birthDate == null) {
+            return null;
+        }
+        return Period.between(birthDate, today).getYears();
     }
 
     /**

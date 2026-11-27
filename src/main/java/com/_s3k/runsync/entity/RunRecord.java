@@ -82,6 +82,13 @@ public class RunRecord extends BaseEntity {
         return this.startTime.plusSeconds(this.durationSeconds);
     }
 
+    /**
+     * 거리와 시간이 모두 0보다 큰 기록인지. 시작 직후 종료한 기록은 페이스를 계산할 수 없다
+     */
+    public boolean hasDistanceAndDuration() {
+        return this.distance.signum() > 0 && this.durationSeconds > 0;
+    }
+
     public void validateOwner(Long userId) {
         if (!Objects.equals(this.userId, userId)) {
             throw new GlobalException(RunRecordErrorCode.RECORD_NOT_OWNER);

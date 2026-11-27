@@ -59,4 +59,28 @@ class RunRecordTest {
                 .satisfies(e -> assertThat(((GlobalException) e).getResultCode())
                         .isEqualTo(RunRecordErrorCode.RECORD_NOT_OWNER));
     }
+
+    @Test
+    @DisplayName("hasDistanceAndDuration - 거리와 시간이 모두 0보다 크면 true")
+    void hasDistanceAndDuration_true() {
+        assertThat(recordOf("5.20", 1890).hasDistanceAndDuration()).isTrue();
+    }
+
+    @Test
+    @DisplayName("hasDistanceAndDuration - 거리가 0이면 false")
+    void hasDistanceAndDuration_zeroDistance() {
+        assertThat(recordOf("0.00", 600).hasDistanceAndDuration()).isFalse();
+    }
+
+    @Test
+    @DisplayName("hasDistanceAndDuration - 시간이 0이면 false")
+    void hasDistanceAndDuration_zeroDuration() {
+        assertThat(recordOf("3.00", 0).hasDistanceAndDuration()).isFalse();
+    }
+
+    private RunRecord recordOf(String distanceKm, int durationSeconds) {
+        User user = User.createTmpUser(Provider.KAKAO, "kakaoId", "nickname", null);
+        return RunRecord.of(user, null, durationSeconds, LocalDateTime.now(),
+                new BigDecimal(distanceKm), null, null, null, null, null);
+    }
 }
