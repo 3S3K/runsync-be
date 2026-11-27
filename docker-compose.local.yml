@@ -1,6 +1,7 @@
 services:
   postgres:
-    image: postgis/postgis:16-3.4-alpine
+    build: ./docker/postgres
+    image: runsync-postgres:16-pgrouting
     container_name: runsync-postgres
     ports:
       - "5432:5432"
@@ -8,9 +9,14 @@ services:
       POSTGRES_DB: runsync
       POSTGRES_USER: runsync
       POSTGRES_PASSWORD: 1234
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
 
   redis:
     image: redis:alpine
     container_name: runsync-redis
     ports:
       - "6379:6379"
+
+volumes:
+  postgres_data:
