@@ -78,6 +78,7 @@ public class CourseRes {
         this.estimatedTimeMin = course.getEstimatedTimeMin();
         this.stairsCount = course.getStairsCount();
         this.hrZone = course.getHrZone();
+        // [최저, 최고] 한 쌍이라 빈 목록으로 바꾸지 않는다. 값이 없으면(나이 미상 포함) null이다
         this.hrBpmRange = course.getHrBpmRange();
         this.biggestClimb = course.getBiggestClimb() == null ? null
                 : CourseClimbRes.of(course.getBiggestClimb());

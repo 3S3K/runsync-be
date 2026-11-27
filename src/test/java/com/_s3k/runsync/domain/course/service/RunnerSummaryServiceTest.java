@@ -112,6 +112,21 @@ class RunnerSummaryServiceTest {
     }
 
     @Test
+    @DisplayName("체력 수준은 응답에 담기는 정수 페이스로 판정한다")
+    void getRunnerSummaryByUserId_fitnessLevelFollowsDisplayedPace() {
+        // given: 329.8초/km → 응답에는 330초/km(5'30")로 나간다
+        givenRecentRecords(List.of(record("5.00", 1649, LocalDate.of(2026, 11, 26), null, null)));
+        givenWeeklyDistance("5.00");
+
+        // when
+        RunnerSummaryRes result = runnerSummaryService.getRunnerSummaryByUserId(USER_ID);
+
+        // then: 5'30"/km로 보이는 러너는 기준(5'30"부터 중급)대로 중급이다
+        assertThat(result.getAveragePaceSecPerKm()).isEqualTo(330);
+        assertThat(result.getFitnessLevel()).isEqualTo(FitnessLevel.INTERMEDIATE);
+    }
+
+    @Test
     @DisplayName("기록이 없으면 기록 수 0, 평균값 null, 빈 목록을 돌려준다")
     void getRunnerSummaryByUserId_withoutRecords() {
         // given

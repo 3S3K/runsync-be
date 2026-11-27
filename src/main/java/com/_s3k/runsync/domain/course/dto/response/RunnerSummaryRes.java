@@ -70,6 +70,7 @@ public class RunnerSummaryRes {
         int totalSeconds = recentRecords.stream().mapToInt(RunRecord::getDurationSeconds).sum();
 
         // 추천 서버와 같은 방식: 총 시간 ÷ 총 거리
+        // 체력 수준도 이 정수 값으로 판정한다. 화면에 보이는 페이스와 판정 기준이 어긋나지 않게 하기 위함이다
         int paceSecPerKm = (int) Math.round(totalSeconds / totalDistance.doubleValue());
         double averageDistanceKm = totalDistance
                 .divide(BigDecimal.valueOf(recentRecords.size()), 1, RoundingMode.HALF_UP)
