@@ -6,6 +6,7 @@ import com._s3k.runsync.domain.course.dto.request.CourseRecommendReq;
 import com._s3k.runsync.domain.course.dto.response.AiRecommendRes;
 import com._s3k.runsync.domain.course.dto.response.CourseRecommendRes;
 import com._s3k.runsync.domain.course.dto.response.CourseRes;
+import com._s3k.runsync.domain.course.dto.response.CourseSlopeSegmentRes;
 import com._s3k.runsync.domain.run.repository.RunRecordRepository;
 import com._s3k.runsync.domain.users.exception.UserErrorCode;
 import com._s3k.runsync.domain.users.repository.UserRepository;
@@ -47,6 +48,23 @@ class CourseRecommendServiceTest {
 
     private static final Long USER_ID = 12L;
     private static final String AI_RESPONSE_JSON = """
+            {"courses": [{
+              "rank": 1, "name": "용운로 순환", "score": 89,
+              "distanceKm": 5.12, "elevationGainM": 38.0, "maxSlopePct": 6.4,
+              "predictedHrPct": 74.5, "intensity": "NORMAL", "reason": "추천 이유",
+              "geometry": {"type": "LineString",
+                           "coordinates": [[127.4562, 36.3321], [127.4571, 36.3330], [127.4562, 36.3321]]},
+              "elevationProfile": [{"distanceM": 0, "elevationM": 89.5}, {"distanceM": 150, "elevationM": 91.2}],
+              "estimatedTimeMin": 31, "stairsCount": 2, "hrZone": "Z3", "hrBpmRange": [142, 152],
+              "biggestClimb": {"startM": 2810, "lengthM": 450, "gainM": 11},
+              "slopeSegments": [
+                {"grade": "FLAT", "coordinates": [[127.4562, 36.3321], [127.4571, 36.3330]]},
+                {"grade": "STEEP", "coordinates": [[127.4571, 36.3330], [127.4562, 36.3321]]}
+              ]
+            }]}
+            """;
+    // 상세 정보를 내려주지 않는 구버전 추천 서버의 응답
+    private static final String LEGACY_AI_RESPONSE_JSON = """
             {"courses": [{
               "rank": 1, "distanceKm": 5.12, "elevationGainM": 38.0, "maxSlopePct": 6.4,
               "predictedHrPct": 74.5, "intensity": "NORMAL", "reason": "추천 이유",
@@ -119,6 +137,61 @@ class CourseRecommendServiceTest {
         assertThat(course.getGeometry().getType()).isEqualTo("LineString");
         assertThat(course.getGeometry().getCoordinates()).hasSize(3);
         assertThat(course.getGeometry().getCoordinates().get(0)).containsExactly(127.4562, 36.3321);
+    }
+
+    @Test
+    @DisplayName("추천 서버가 내려준 코스 상세 정보를 응답에 담는다")
+    void createRecommendation_passesCourseDetail() throws Exception {
+        // given
+        givenUser(24, Gender.MALE);
+        givenRecords(List.of());
+        given(recommendClient.recommend(any())).willReturn(aiResponse());
+
+        // when
+        CourseRecommendRes result = courseRecommendService.createRecommendation(USER_ID, request());
+
+        // then
+        CourseRes course = result.getCourses().get(0);
+        assertThat(course.getName()).isEqualTo("용운로 순환");
+        assertThat(course.getScore()).isEqualTo(89);
+        assertThat(course.getEstimatedTimeMin()).isEqualTo(31);
+        assertThat(course.getStairsCount()).isEqualTo(2);
+        assertThat(course.getHrZone()).isEqualTo("Z3");
+        assertThat(course.getHrBpmRange()).containsExactly(142, 152);
+        assertThat(course.getElevationProfile()).hasSize(2);
+        assertThat(course.getElevationProfile().get(1).getDistanceM()).isEqualTo(150);
+        assertThat(course.getElevationProfile().get(1).getElevationM()).isEqualTo(91.2);
+        assertThat(course.getBiggestClimb().getStartM()).isEqualTo(2810);
+        assertThat(course.getBiggestClimb().getLengthM()).isEqualTo(450);
+        assertThat(course.getBiggestClimb().getGainM()).isEqualTo(11);
+        assertThat(course.getSlopeSegments())
+                .extracting(CourseSlopeSegmentRes::getGrade)
+                .containsExactly("FLAT", "STEEP");
+        assertThat(course.getSlopeSegments().get(0).getCoordinates().get(0)).containsExactly(127.4562, 36.3321);
+    }
+
+    @Test
+    @DisplayName("추천 서버가 상세 정보를 내려주지 않으면 목록은 빈 목록, 나머지는 null로 돌려준다")
+    void createRecommendation_withoutCourseDetail() throws Exception {
+        // given
+        givenUser(24, Gender.MALE);
+        givenRecords(List.of());
+        given(recommendClient.recommend(any()))
+                .willReturn(new ObjectMapper().readValue(LEGACY_AI_RESPONSE_JSON, AiRecommendRes.class));
+
+        // when
+        CourseRecommendRes result = courseRecommendService.createRecommendation(USER_ID, request());
+
+        // then
+        CourseRes course = result.getCourses().get(0);
+        assertThat(course.getDistanceKm()).isEqualTo(5.12);
+        assertThat(course.getElevationProfile()).isEmpty();
+        assertThat(course.getSlopeSegments()).isEmpty();
+        assertThat(course.getName()).isNull();
+        assertThat(course.getScore()).isNull();
+        assertThat(course.getEstimatedTimeMin()).isNull();
+        assertThat(course.getHrBpmRange()).isNull();
+        assertThat(course.getBiggestClimb()).isNull();
     }
 
     @Test
