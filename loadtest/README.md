@@ -19,12 +19,17 @@ WebSocket 접속 → 러닝룸(협동 러닝) 구독 → 러닝 시작 → GPS �
 Node 22 이상이면 되고, 설치할 패키지는 없다.
 
 ```bash
+cd loadtest
+
 # 가상 계정 모드 (로컬): 계정마다 토큰을 직접 만든다. 서버와 같은 JWT_SECRET 이 필요하다
-JWT_SECRET=... node load-test.mjs --target http://localhost:8090 --users 50 --first-user-id 3 --room 1 --server-pid <서버 PID>
+JWT_SECRET=... node load-test.mjs --target http://localhost:8090 --users 50 --first-user-id <first_user_id> --room <room_id> --server-pid <서버 PID>
 
 # 단일 계정 모드: 한 계정의 토큰으로 연결 수만 늘린다 (러닝 세션·러닝룸 없이 접속과 송수신만)
 ACCESS_TOKEN=... node load-test.mjs --target https://api.example.com --users 50
 ```
+
+- `<first_user_id>`, `<room_id>` 에는 `local-setup.sql` 을 실행했을 때 마지막에 출력되는 값을 넣는다. 번호는 DB가 매기므로 실행할 때마다 달라진다.
+- 단일 계정 모드에서는 연결 하나만 핑을 보내 왕복 시간을 잰다. 핑 응답은 같은 계정의 모든 연결로 전달되고 요청을 구분할 값이 없기 때문이다. 측정하는 동안에는 그 계정으로 앱을 쓰지 않는다.
 
 | 옵션 | 기본값 | 설명 |
 |---|---|---|
@@ -55,7 +60,9 @@ ACCESS_TOKEN=... node load-test.mjs --target https://api.example.com --users 50
 ## 측정 조건과 한계
 
 - **로컬 환경의 결과다.** 서버·DB·Redis·테스트 클라이언트가 모두 같은 장비(Apple M4, 10코어, 16GB)에서 돌았다. 운영 서버(EC2 1대)의 처리 한계를 나타내지 않는다.
+- **운영 환경을 대상으로 한 측정은 하지 않았다.** 운영 DB에 가상 계정을 만들 수 없고, 운영 서버의 JWT 비밀키로 토큰을 직접 발급하는 것은 보안상 하지 않기로 했다. 운영 서버는 단일 계정 모드로 접속·송수신만 측정할 수 있으며, 이는 후속 작업으로 남긴다.
 - CPU 수치는 코어 하나를 100%로 본 값이다(10코어 장비에서 최대 1,000%).
+- 위 표의 CPU는 측정 당시 macOS `ps` 의 `%cpu`(최근 구간의 감쇠 평균)로 읽은 값이다. 이후 스크립트는 운영체제와 무관하게 누적 CPU 시간의 차이로 사용률을 계산하도록 바꿨다.
 - 지연 시간에는 테스트 클라이언트가 메시지를 처리하는 시간이 포함된다. 가상 사용자 100명이 한 프로세스에서 초당 10,000건을 받아 해석하므로, 인원이 많은 단계의 지연에는 클라이언트 쪽 부하가 섞여 있다.
 - 네트워크 지연이 없다. 실제 모바일 환경에서는 여기에 왕복 지연이 더해진다.
 - SQL 로그 출력을 끈 상태로 측정했다.

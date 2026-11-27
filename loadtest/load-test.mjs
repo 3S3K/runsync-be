@@ -5,7 +5,7 @@
  * 가상 사용자마다: WebSocket 접속 → 러닝룸(협동 러닝) 구독 → 러닝 시작 → GPS 송수신 → 러닝 종료 → 기록 저장
  *
  *   # 가상 계정 모드: 계정마다 토큰을 직접 만든다 (서버와 같은 JWT_SECRET 필요, 로컬 환경용)
- *   JWT_SECRET=... node load-test.mjs --target http://localhost:8090 --users 50 --first-user-id 2 --room 1
+ *   JWT_SECRET=... node load-test.mjs --target http://localhost:8090 --users 50 --first-user-id <first_user_id> --room <room_id>
  *
  *   # 단일 계정 모드: 한 계정의 토큰으로 연결 수만 늘린다 (러닝 세션·러닝룸 없이 접속과 송수신만)
  *   ACCESS_TOKEN=... node load-test.mjs --target https://api.example.com --users 50
@@ -30,8 +30,27 @@ const JWT_SECRET = process.env.JWT_SECRET || '';
 const SHARED_TOKEN = process.env.ACCESS_TOKEN || '';
 const IS_SHARED_ACCOUNT = !JWT_SECRET;
 
+const CONNECT_TIMEOUT_MS = 10000;
+const REQUEST_TIMEOUT_MS = 10000;      // REST 요청 하나의 제한 시간. 넘기면 실패로 센다
+const PING_TIMEOUT_MS = 5000;          // 이 시간 안에 응답이 없는 핑은 시간 초과로 센다
+const SAVE_EVERY_SEC = 5;              // 실제 앱이 누적 거리·시간을 저장하는 주기
+const SAMPLE_EVERY_MS = 2000;          // 서버 CPU·메모리를 재는 주기
+const SETTLE_MS = 500;
+const LAST_MESSAGE_WAIT_MS = 1500;
+
 if (IS_SHARED_ACCOUNT && !SHARED_TOKEN) {
   console.error('JWT_SECRET(가상 계정 모드) 또는 ACCESS_TOKEN(단일 계정 모드) 환경변수가 필요합니다.');
+  process.exit(1);
+}
+const invalid = [
+  ['users', Number.isInteger(USERS) && USERS > 0],
+  ['duration', DURATION_SEC > 0],
+  ['interval', INTERVAL_MS > 0],
+  ['first-user-id', Number.isInteger(FIRST_USER_ID) && FIRST_USER_ID > 0],
+  ['room', ROOM_ID == null || (Number.isInteger(ROOM_ID) && ROOM_ID > 0)],
+].filter(([, ok]) => !ok).map(([name]) => `--${name}`);
+if (invalid.length) {
+  console.error(`값이 올바르지 않습니다: ${invalid.join(', ')}`);
   process.exit(1);
 }
 
@@ -67,13 +86,32 @@ class StompClient {
 
   connect() {
     return new Promise((resolve, reject) => {
-      const timer = setTimeout(() => reject(new Error('연결 시간 초과')), 10000);
+      let settled = false;
+      // 성공이든 실패든 한 번만 확정한다. 실패로 확정하면 소켓을 닫아, 뒤늦게 붙은 연결이 서버에 남지 않게 한다
+      const settle = (error) => {
+        if (settled) {
+          return;
+        }
+        settled = true;
+        clearTimeout(timer);
+        if (error) {
+          this.disconnect();
+          reject(error);
+        } else {
+          resolve();
+        }
+      };
+      const timer = setTimeout(() => settle(new Error('연결 시간 초과')), CONNECT_TIMEOUT_MS);
+
       this.socket = new WebSocket(WS_URL);
       this.socket.onopen = () => this.frame('CONNECT', {
         'accept-version': '1.2', 'heart-beat': '0,0', Authorization: `Bearer ${this.token}`,
       });
-      this.socket.onerror = () => { clearTimeout(timer); reject(new Error('소켓 오류')); };
-      this.socket.onclose = () => { this.closed = true; clearTimeout(timer); reject(new Error('연결 종료')); };
+      this.socket.onerror = () => settle(new Error('소켓 오류'));
+      this.socket.onclose = () => {
+        this.closed = true;
+        settle(new Error('연결 종료'));
+      };
       this.socket.onmessage = (event) => {
         String(event.data).split('\0').forEach((raw) => {
           const text = raw.replace(/^\n+/, '');
@@ -88,14 +126,16 @@ class StompClient {
           }));
           const payload = rest.join('\n\n');
           if (command === 'CONNECTED') {
-            clearTimeout(timer);
-            resolve();
+            settle();
           } else if (command === 'ERROR') {
             this.errors.push(headers.message || payload);
-            clearTimeout(timer);
-            reject(new Error(headers.message || 'STOMP 오류'));
+            settle(new Error(headers.message || 'STOMP 오류'));
           } else if (command === 'MESSAGE') {
-            this.handlers.get(headers.subscription)?.(payload);
+            try {
+              this.handlers.get(headers.subscription)?.(payload);
+            } catch (error) {
+              this.errors.push(`메시지 처리 실패: ${error.message}`);
+            }
           }
         });
       };
@@ -117,6 +157,15 @@ class StompClient {
   }
 
   disconnect() {
+    this.closed = true;
+    this.handlers.clear();
+    if (!this.socket) {
+      return;
+    }
+    this.socket.onopen = null;
+    this.socket.onmessage = null;
+    this.socket.onerror = null;
+    this.socket.onclose = null;
     try {
       this.socket.close();
     } catch {
@@ -132,6 +181,7 @@ async function api(token, method, path, body) {
     method,
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
     body: body ? JSON.stringify(body) : undefined,
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   });
   const json = await response.json().catch(() => null);
   if (!response.ok) {
@@ -146,14 +196,15 @@ const stats = {
   connectOk: 0, connectFail: 0,
   startOk: 0, startFail: 0,
   sent: 0, received: 0, latencies: [],
+  pingSent: 0, pingTimeout: 0,
   locationSaveOk: 0, locationSaveFail: 0,
   endOk: 0, endFail: 0,
   recordOk: 0, recordFail: 0,
+  unexpected: 0,
   errors: [],
 };
 const sentAt = new Map();      // "보낸 사용자:위도" → 보낸 시각. 받은 쪽에서 지연 시간을 계산한다
-const cpuSamples = [];
-const memorySamples = [];
+const serverSamples = [];      // { at, cpuSec, memoryMb }
 
 function fail(kind, error) {
   stats[kind] += 1;
@@ -162,25 +213,47 @@ function fail(kind, error) {
   }
 }
 
+/** ps 의 누적 CPU 시간([DD-][HH:]MM:SS[.ss])을 초로 바꾼다. macOS 와 Linux 의 표기를 모두 받는다 */
+function parseCpuSeconds(text) {
+  const [days, clock] = text.includes('-') ? text.split('-') : ['0', text];
+  return Number(days) * 86400 + clock.split(':').reduce((total, part) => total * 60 + Number(part), 0);
+}
+
 function sampleServer() {
   if (!SERVER_PID) {
     return;
   }
   try {
-    const [cpu, rssKb] = execFileSync('ps', ['-o', '%cpu=,rss=', '-p', SERVER_PID]).toString().trim().split(/\s+/);
-    cpuSamples.push(Number(cpu));
-    memorySamples.push(Number(rssKb) / 1024);
+    // %cpu 는 운영체제마다 기준 구간이 달라(Linux 는 프로세스 실행 시간 전체의 평균) 쓰지 않고, 누적 CPU 시간을 읽어 차이로 계산한다
+    const [cpuTime, rssKb] = execFileSync('ps', ['-o', 'time=,rss=', '-p', SERVER_PID]).toString().trim().split(/\s+/);
+    serverSamples.push({ at: performance.now(), cpuSec: parseCpuSeconds(cpuTime), memoryMb: Number(rssKb) / 1024 });
   } catch {
     // 프로세스를 찾지 못하면 건너뛴다
   }
 }
 
+/** 표본 사이에 늘어난 CPU 시간을 지난 시간으로 나눈 사용률(코어 하나 = 100%). Linux ps 는 초 단위라 구간별 최댓값은 거칠다 */
+function cpuUsage(samples) {
+  if (samples.length < 2) {
+    return { avg: null, max: null };
+  }
+  const usage = (from, to) => ((to.cpuSec - from.cpuSec) / ((to.at - from.at) / 1000)) * 100;
+  return {
+    avg: usage(samples[0], samples[samples.length - 1]),
+    max: Math.max(...samples.slice(1).map((sample, index) => usage(samples[index], sample))),
+  };
+}
+
 // ----- 가상 사용자 한 명 -----
 
-async function runUser(index, startSignal) {
+/**
+ * @param {number} index 가상 사용자 순번
+ * @param {Promise<void>} startSignal 준비가 끝난 사용자 전원이 동시에 달리기 시작하는 신호
+ * @param {(isReady: boolean) => void} reportReady 접속·구독·러닝 시작이 끝났는지(또는 접속에 실패했는지) 알린다
+ */
+async function runUser(index, startSignal, reportReady) {
   const userId = FIRST_USER_ID + index;
   const token = IS_SHARED_ACCOUNT ? SHARED_TOKEN : mintToken(userId);
-  const sender = IS_SHARED_ACCOUNT ? `c${index}` : String(userId);
   const client = new StompClient(token);
 
   try {
@@ -188,8 +261,13 @@ async function runUser(index, startSignal) {
     stats.connectOk += 1;
   } catch (error) {
     fail('connectFail', error);
+    reportReady(false);
     return;
   }
+
+  // 러닝룸이 없으면 서버의 핑 응답으로 왕복 시간을 잰다.
+  // 핑 응답은 같은 계정의 모든 연결로 전달되고 요청 식별자가 없으므로, 단일 계정 모드에서는 연결 하나만 핑을 보낸다.
+  const probe = ROOM_ID == null && (!IS_SHARED_ACCOUNT || index === 0) ? { sentAt: null, stale: 0 } : null;
 
   if (ROOM_ID != null) {
     client.subscribe(`/topic/artrun/${ROOM_ID}`, 'room', (payload) => {
@@ -203,13 +281,16 @@ async function runUser(index, startSignal) {
         stats.latencies.push(performance.now() - sent);
       }
     });
-  } else {
-    // 러닝룸이 없으면 서버의 핑 응답으로 왕복 시간을 잰다
+  } else if (probe) {
     client.subscribe('/user/queue/ping', 'ping', () => {
-      const sent = sentAt.get(`${sender}:ping`);
-      if (sent) {
+      if (probe.stale > 0) {
+        probe.stale -= 1;      // 시간 초과로 이미 센 핑의 뒤늦은 응답
+        return;
+      }
+      if (probe.sentAt != null) {
         stats.received += 1;
-        stats.latencies.push(performance.now() - sent);
+        stats.latencies.push(performance.now() - probe.sentAt);
+        probe.sentAt = null;
       }
     });
   }
@@ -225,18 +306,31 @@ async function runUser(index, startSignal) {
     }
   }
 
-  await startSignal;      // 모든 사용자가 접속을 마친 뒤 동시에 달리기 시작한다
+  reportReady(true);
+  await startSignal;
 
   const ticks = Math.round((DURATION_SEC * 1000) / INTERVAL_MS);
+  const saves = [];
+  let savedCount = 0;
   for (let tick = 0; tick < ticks && !client.closed; tick += 1) {
+    const elapsedSec = (tick * INTERVAL_MS) / 1000;
     const latitude = Number((BASE.lat + index * 0.001 + tick * 0.00001).toFixed(6));
     const longitude = Number((BASE.lng + index * 0.001).toFixed(6));
 
     if (ROOM_ID != null) {
       sentAt.set(`${userId}:${latitude.toFixed(6)}`, performance.now());
-    } else {
-      sentAt.set(`${sender}:ping`, performance.now());
-      client.send('/app/ping', {});
+    } else if (probe) {
+      // 응답을 기다리는 핑이 있으면 새로 보내지 않는다. 보낸 시각이 덮어써지면 지연이 실제보다 짧게 잡힌다
+      if (probe.sentAt != null && performance.now() - probe.sentAt > PING_TIMEOUT_MS) {
+        stats.pingTimeout += 1;
+        probe.stale += 1;
+        probe.sentAt = null;
+      }
+      if (probe.sentAt == null) {
+        probe.sentAt = performance.now();
+        client.send('/app/ping', {});
+        stats.pingSent += 1;
+      }
     }
     client.send('/app/location', {
       type: 'LOCATION_UPDATE',
@@ -244,21 +338,30 @@ async function runUser(index, startSignal) {
     });
     stats.sent += 1;
 
-    // 실제 앱처럼 5초마다 누적 거리·시간을 저장한다
-    if (sessionId && tick > 0 && tick % 5 === 0) {
-      api(token, 'PATCH', `/api/run-sessions/${sessionId}/location`, {
-        lastLatitude: latitude, lastLongitude: longitude, currentDistance: Number((tick * 0.003).toFixed(2)), currentDurationTime: tick,
-      }).then(() => { stats.locationSaveOk += 1; }).catch((error) => fail('locationSaveFail', error));
+    // 실제 앱처럼 5초마다 누적 거리·시간을 저장한다. 전송 주기와 무관하게 지난 시간으로 판단한다
+    const saveTurn = Math.floor(elapsedSec / SAVE_EVERY_SEC);
+    if (sessionId && saveTurn > savedCount) {
+      savedCount = saveTurn;
+      saves.push(api(token, 'PATCH', `/api/run-sessions/${sessionId}/location`, {
+        lastLatitude: latitude,
+        lastLongitude: longitude,
+        currentDistance: Number((elapsedSec * 0.003).toFixed(2)),
+        currentDurationTime: Math.round(elapsedSec),
+      }).then(() => { stats.locationSaveOk += 1; }, (error) => fail('locationSaveFail', error)));
     }
     await sleep(INTERVAL_MS);
   }
 
-  await sleep(1500);      // 마지막 메시지가 도착할 시간을 준다
+  // 마지막 메시지가 도착할 시간을 주고, 보낸 저장 요청의 결과가 모두 확정된 뒤에 러닝을 종료한다
+  await Promise.all([sleep(LAST_MESSAGE_WAIT_MS), ...saves]);
+  if (probe?.sentAt != null) {
+    stats.pingTimeout += 1;
+  }
 
   if (sessionId) {
     try {
       await api(token, 'PATCH', `/api/run-sessions/${sessionId}`, {
-        endTime: new Date().toISOString(), totalDistance: Number((ticks * 0.003).toFixed(2)),
+        endTime: new Date().toISOString(), totalDistance: Number((DURATION_SEC * 0.003).toFixed(2)),
       });
       stats.endOk += 1;
       try {
@@ -287,30 +390,45 @@ function rate(ok, total) {
   return total ? Number(((ok / total) * 100).toFixed(1)) : null;
 }
 
-let releaseStart;
-const startSignal = new Promise((resolve) => { releaseStart = resolve; });
-const sampler = setInterval(sampleServer, 2000);
-
+const start = Promise.withResolvers();
 const users = [];
+const readiness = [];
 for (let index = 0; index < USERS; index += 1) {
-  users.push(runUser(index, startSignal));
+  const ready = Promise.withResolvers();
+  readiness.push(ready.promise);
+  users.push(runUser(index, start.promise, ready.resolve).catch((error) => {
+    fail('unexpected', error);
+    ready.resolve(false);
+  }));
   await sleep(20);      // 접속이 한 순간에 몰리지 않게 조금씩 띄운다
 }
-await sleep(1500);
-const connectedAtStart = stats.connectOk;
-releaseStart();
+
+// 모든 사용자의 준비 결과가 확정된 뒤 참가자를 고정한다. 시작 신호를 받는 집합과 전달률의 분모가 같아진다
+const participants = (await Promise.all(readiness)).filter(Boolean).length;
+if (participants === 0) {
+  console.error('접속에 성공한 사용자가 없습니다.', [...new Set(stats.errors)].slice(0, 5));
+  process.exit(1);
+}
+await sleep(SETTLE_MS);      // 단순 브로커는 구독 확인(RECEIPT)을 주지 않으므로, 구독 프레임이 처리될 시간을 조금 둔다
+
+sampleServer();
+const sampler = setInterval(sampleServer, SAMPLE_EVERY_MS);
+start.resolve();
 await Promise.all(users);
 clearInterval(sampler);
+sampleServer();
 
 const sorted = [...stats.latencies].sort((a, b) => a - b);
-// 러닝룸에서는 보낸 위치 하나를 접속한 참가자 모두가 받는다. 핑은 보낸 사람만 받는다
-const expected = ROOM_ID != null ? stats.sent * connectedAtStart : stats.sent;
+// 러닝룸에서는 보낸 위치 하나를 참가자 모두가 받는다. 핑은 보낸 연결이 응답 하나를 받는다
+const expected = ROOM_ID != null ? stats.sent * participants : stats.pingSent;
 const round = (value) => (value == null ? null : Number(value.toFixed(1)));
+const cpu = cpuUsage(serverSamples);
 
 const result = {
   target: TARGET,
   mode: IS_SHARED_ACCOUNT ? '단일 계정' : '가상 계정',
   users: USERS,
+  participants,
   durationSec: DURATION_SEC,
   connectSuccessPct: rate(stats.connectOk, USERS),
   runStartSuccessPct: IS_SHARED_ACCOUNT ? null : rate(stats.startOk, USERS),
@@ -318,15 +436,17 @@ const result = {
   deliveriesExpected: expected,
   deliveriesReceived: stats.received,
   deliverySuccessPct: rate(stats.received, expected),
-  latencyMs: { avg: round(sorted.reduce((sum, v) => sum + v, 0) / (sorted.length || 1)), p50: round(percentile(sorted, 0.5)), p95: round(percentile(sorted, 0.95)), max: round(sorted[sorted.length - 1] ?? null) },
+  pingTimeouts: ROOM_ID == null ? stats.pingTimeout : null,
+  latencyMs: { avg: round(sorted.length ? sorted.reduce((sum, v) => sum + v, 0) / sorted.length : null), p50: round(percentile(sorted, 0.5)), p95: round(percentile(sorted, 0.95)), max: round(sorted[sorted.length - 1] ?? null) },
   locationSaveSuccessPct: rate(stats.locationSaveOk, stats.locationSaveOk + stats.locationSaveFail),
   runEndSuccessPct: IS_SHARED_ACCOUNT ? null : rate(stats.endOk, stats.startOk),
   recordSaveSuccessPct: IS_SHARED_ACCOUNT ? null : rate(stats.recordOk, stats.startOk),
   server: SERVER_PID ? {
-    cpuAvgPct: round(cpuSamples.reduce((sum, v) => sum + v, 0) / (cpuSamples.length || 1)),
-    cpuMaxPct: round(Math.max(0, ...cpuSamples)),
-    memoryMaxMb: round(Math.max(0, ...memorySamples)),
+    cpuAvgPct: round(cpu.avg),
+    cpuMaxPct: round(cpu.max),
+    memoryMaxMb: round(serverSamples.length ? Math.max(...serverSamples.map((sample) => sample.memoryMb)) : null),
   } : null,
+  unexpectedErrors: stats.unexpected,
   errorSamples: [...new Set(stats.errors)].slice(0, 5),
 };
 console.log(JSON.stringify(result, null, 2));
