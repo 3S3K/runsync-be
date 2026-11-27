@@ -23,8 +23,6 @@ import java.util.List;
 public class CourseRecommendService {
 
     private static final int RECENT_RECORD_COUNT = 5;
-    // 추천 서버는 거리와 시간이 0보다 큰 기록만 받는다. 그런 기록을 걸러내고도 5개를 채우기 위해 넉넉히 읽는다
-    private static final int RECENT_RECORD_FETCH_SIZE = 20;
 
     private final UserRepository userRepository;
     private final RunRecordRepository runRecordRepository;
@@ -36,12 +34,9 @@ public class CourseRecommendService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new GlobalException(UserErrorCode.USER_NOT_FOUND));
 
+        // 추천 서버는 거리와 시간이 0보다 큰 기록만 받는다
         List<RunRecord> recentRecords = runRecordRepository
-                .findByUserIdOrderByIdDesc(userId, PageRequest.of(0, RECENT_RECORD_FETCH_SIZE))
-                .stream()
-                .filter(RunRecord::hasDistanceAndDuration)
-                .limit(RECENT_RECORD_COUNT)
-                .toList();
+                .findRecentWithDistanceAndDuration(userId, PageRequest.of(0, RECENT_RECORD_COUNT));
 
         AiRecommendReq aiRequest = AiRecommendReq.of(request, user, LocalDate.now(clock), recentRecords);
         return CourseRecommendRes.of(recommendClient.recommend(aiRequest));

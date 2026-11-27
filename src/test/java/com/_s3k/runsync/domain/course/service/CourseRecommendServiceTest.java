@@ -29,7 +29,6 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.IntStream;
@@ -39,7 +38,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -82,7 +80,7 @@ class CourseRecommendServiceTest {
     void createRecommendation_success() throws Exception {
         // given
         givenUser(24, Gender.MALE);
-        RunRecord record = record("5.20", 1890, true);
+        RunRecord record = record("5.20", 1890);
         given(record.getAverageHeartRate()).willReturn(158);
         given(record.getCadence()).willReturn(168);
         given(record.getElevationGain()).willReturn(new BigDecimal("22.00"));
@@ -142,14 +140,13 @@ class CourseRecommendServiceTest {
     }
 
     @Test
-    @DisplayName("거리와 시간이 없는 기록은 제외하고 최근 5개만 보낸다")
-    void createRecommendation_filtersUnusableRecordsAndLimitsToFive() throws Exception {
+    @DisplayName("거리와 시간이 있는 기록을 최근 5개만 조회해 순서대로 보낸다")
+    void createRecommendation_requestsFiveRecentRecords() throws Exception {
         // given
         givenUser(24, Gender.MALE);
-        List<RunRecord> records = new ArrayList<>();
-        records.add(record("0.00", 600, false));
-        records.add(record("3.00", 0, false));
-        IntStream.rangeClosed(1, 7).forEach(i -> records.add(record(i + ".00", 1000 + i, true)));
+        List<RunRecord> records = IntStream.rangeClosed(1, 5)
+                .mapToObj(i -> record(i + ".00", 1000 + i))
+                .toList();
         givenRecords(records);
         given(recommendClient.recommend(any())).willReturn(aiResponse());
 
@@ -157,8 +154,12 @@ class CourseRecommendServiceTest {
         courseRecommendService.createRecommendation(USER_ID, request());
 
         // then
+        ArgumentCaptor<Pageable> pageable = ArgumentCaptor.forClass(Pageable.class);
+        verify(runRecordRepository).findRecentWithDistanceAndDuration(eq(USER_ID), pageable.capture());
+        assertThat(pageable.getValue().getPageNumber()).isZero();
+        assertThat(pageable.getValue().getPageSize()).isEqualTo(5);
+
         AiRecommendReq sent = captureAiRequest();
-        assertThat(sent.getRecentRecords()).hasSize(5);
         assertThat(sent.getRecentRecords())
                 .extracting(AiRecommendReq.RecentRecord::getDistanceKm)
                 .containsExactly(1.0, 2.0, 3.0, 4.0, 5.0);
@@ -188,15 +189,13 @@ class CourseRecommendServiceTest {
     }
 
     private void givenRecords(List<RunRecord> records) {
-        given(runRecordRepository.findByUserIdOrderByIdDesc(eq(USER_ID), any(Pageable.class))).willReturn(records);
+        given(runRecordRepository.findRecentWithDistanceAndDuration(eq(USER_ID), any(Pageable.class))).willReturn(records);
     }
 
-    // 걸러지거나 5개 제한에 걸려 읽히지 않는 기록도 있으므로 lenient로 둔다
-    private RunRecord record(String distanceKm, int durationSeconds, boolean hasDistanceAndDuration) {
+    private RunRecord record(String distanceKm, int durationSeconds) {
         RunRecord record = mock(RunRecord.class);
-        lenient().when(record.hasDistanceAndDuration()).thenReturn(hasDistanceAndDuration);
-        lenient().when(record.getDistance()).thenReturn(new BigDecimal(distanceKm));
-        lenient().when(record.getDurationSeconds()).thenReturn(durationSeconds);
+        given(record.getDistance()).willReturn(new BigDecimal(distanceKm));
+        given(record.getDurationSeconds()).willReturn(durationSeconds);
         return record;
     }
 

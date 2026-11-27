@@ -21,6 +21,10 @@ public interface RunRecordRepository extends JpaRepository<RunRecord, Long> {
 
     List<RunRecord> findByUserIdAndIdLessThanOrderByIdDesc(Long userId, Long cursor, Pageable pageable);
 
+    // 거리와 시간이 모두 0보다 큰 기록만 최근 순으로. 시작 직후 종료한 기록은 페이스를 계산할 수 없어 제외한다
+    @Query("SELECT r FROM RunRecord r WHERE r.user.id = :userId AND r.distance > 0 AND r.durationSeconds > 0 ORDER BY r.id DESC")
+    List<RunRecord> findRecentWithDistanceAndDuration(@Param("userId") Long userId, Pageable pageable);
+
     @Query("SELECT r FROM RunRecord r LEFT JOIN FETCH r.paths WHERE r.id = :recordId")
     Optional<RunRecord> findByIdWithPaths(@Param("recordId") Long recordId);
 
